@@ -1,12 +1,24 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+from app.core.config import settings
 
 
 app = FastAPI(
-    title="MikroTik Fleet Manager API",
+    title=settings.app_name,
     description=(
         "Backend API for monitoring and managing MikroTik router fleets."
     ),
-    version="0.1.0",
+    version=settings.app_version,
+    debug=settings.debug,
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.cors_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 
@@ -15,7 +27,7 @@ async def root() -> dict[str, str]:
     """Return basic information about the API."""
 
     return {
-        "message": "MikroTik Fleet Manager API is running."
+        "message": f"{settings.app_name} is running."
     }
 
 
@@ -24,5 +36,6 @@ async def health_check() -> dict[str, str]:
     """Return the current health status of the API."""
 
     return {
-        "status": "ok"
+        "status": "ok",
+        "environment": settings.environment,
     }
