@@ -125,3 +125,11 @@ class RouterResponse(BaseModel):
 
     created_at: datetime
     updated_at: datetime
+
+class RouterListResponse(BaseModel):
+    """Paginated list of registered routers."""
+
+    items: list[RouterResponse]
+    total: int
+    offset: int
+    limit: int
