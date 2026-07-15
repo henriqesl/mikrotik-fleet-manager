@@ -34,3 +34,7 @@ dist/
 # Operating system
 .DS_Store
 Thumbs.db
+
+# Environment-specific certificates
+backend/certs/*
+!backend/certs/.gitkeep

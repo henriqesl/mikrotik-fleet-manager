@@ -33,17 +33,22 @@ class Router(Base):
         index=True,
     )
 
-    ip: Mapped[str] = mapped_column(
+    management_ip: Mapped[str] = mapped_column(
         String(255),
         nullable=False,
         unique=True,
     )
 
+    public_ip: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+    )
+
     api_port: Mapped[int] = mapped_column(
         Integer,
         nullable=False,
-        default=8728,
-        server_default="8728",
+        default=8729,
+        server_default="8729",
     )
 
     username: Mapped[str] = mapped_column(
@@ -59,8 +64,8 @@ class Router(Base):
     use_ssl: Mapped[bool] = mapped_column(
         Boolean,
         nullable=False,
-        default=False,
-        server_default=false(),
+        default=True,
+        server_default=true(),
     )
 
     is_active: Mapped[bool] = mapped_column(
@@ -141,5 +146,5 @@ class Router(Base):
         return (
             f"Router(id={self.id!r}, "
             f"name={self.name!r}, "
-            f"ip={self.ip!r})"
+            f"management_ip={self.management_ip!r})"
         )
