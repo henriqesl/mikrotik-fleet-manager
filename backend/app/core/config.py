@@ -17,6 +17,8 @@ class Settings(BaseSettings):
     debug: bool = False
     api_prefix: str = "/api"
 
+    database_url: str = "sqlite+aiosqlite:///./argos.db"
+
     cors_origins: list[str] = [
         "http://localhost:5173",
     ]
