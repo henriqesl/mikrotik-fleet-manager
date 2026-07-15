@@ -11,7 +11,7 @@ ENV_FILE = BACKEND_DIR / ".env"
 class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
 
-    app_name: str = "MikroTik Fleet Manager API"
+    app_name: str = "ARGOS API"
     app_version: str = "0.1.0"
     environment: str = "development"
     debug: bool = False

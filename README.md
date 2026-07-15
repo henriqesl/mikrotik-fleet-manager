@@ -1,6 +1,8 @@
-# MikroTik Fleet Manager
+# ARGOS
 
-Full-stack platform for monitoring and managing MikroTik router fleets.
+**MikroTik Fleet Manager**
+
+A scalable platform for monitoring and managing MikroTik router fleets.
 
 ## Project Structure
 
