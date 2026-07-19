@@ -12,11 +12,9 @@ from app.db.database import (
 )
 
 from app.core.credential_cipher import get_credential_cipher
-
 from app.routes.routers import router as routers_router
-
 from app.workers.polling import polling_worker
-
+from app.routes.monitoring import router as monitoring_router
 
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
@@ -54,6 +52,11 @@ app.add_middleware(
 
 app.include_router(
     routers_router,
+    prefix=settings.api_prefix,
+)
+
+app.include_router(
+    monitoring_router,
     prefix=settings.api_prefix,
 )
 
