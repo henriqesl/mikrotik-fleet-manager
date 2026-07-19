@@ -123,3 +123,16 @@ class RouterRepository:
         await self._session.flush()
 
         return router
+    
+    async def list_active_routers(self) -> list[Router]:
+        """Return all routers enabled for automatic monitoring."""
+
+        statement = (
+            select(Router)
+            .where(Router.is_active.is_(True))
+            .order_by(Router.id.asc())
+        )
+
+        result = await self._session.scalars(statement)
+
+        return list(result.all())

@@ -3,7 +3,7 @@ from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from pydantic import SecretStr
+from pydantic import Field, SecretStr
 
 BACKEND_DIR = Path(__file__).resolve().parents[2]
 ENV_FILE = BACKEND_DIR / ".env"
@@ -43,6 +43,21 @@ class Settings(BaseSettings):
     )
 
     credential_encryption_key: SecretStr
+
+    max_concurrent_router_checks: int = Field(
+        default=20,
+        ge=1,
+        le=100,
+    )
+
+    poll_interval_seconds: int = Field(
+        default=60,
+        ge=10,
+        le=3600,
+    )
+
+    polling_enabled: bool = True
+    log_level: str = "INFO"
 
 
 @lru_cache
