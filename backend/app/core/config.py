@@ -50,6 +50,12 @@ class Settings(BaseSettings):
         le=100,
     )
 
+    poll_interval_seconds: int = Field(
+        default=60,
+        ge=10,
+        le=3600,
+    )
+
 
 @lru_cache
 def get_settings() -> Settings:

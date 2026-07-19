@@ -15,16 +15,22 @@ from app.core.credential_cipher import get_credential_cipher
 
 from app.routes.routers import router as routers_router
 
+from app.workers.polling import polling_worker
+
 
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     """Manage application startup and shutdown resources."""
 
     get_credential_cipher()
+    polling_worker.start()
 
-    yield
+    try:
+        yield
 
-    await close_database_connection()
+    finally:
+        await polling_worker.stop()
+        await close_database_connection()
 
 
 app = FastAPI(
