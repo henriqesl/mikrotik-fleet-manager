@@ -6,6 +6,7 @@ import {
   Gauge,
   LayoutDashboard,
   LoaderCircle,
+  Menu,
   Plus,
   RefreshCw,
   Router,
@@ -22,6 +23,7 @@ import { RouterDetailDrawer } from "./components/RouterDetailDrawer";
 import { RouterRegistrationModal } from "./components/RouterRegistrationModal";
 import { useFleetDashboard } from "./hooks/useFleetDashboard";
 
+import { MobileNavigation } from "./components/MobileNavigation";
 
 const navigationItems = [
   {
@@ -177,12 +179,11 @@ function formatDateTime(value) {
 function Brand() {
   return (
     <div className="flex items-center gap-3">
-      <div className="flex size-10 items-center justify-center rounded-xl border border-emerald-400/20 bg-emerald-400/10">
-        <ShieldCheck
-          className="size-5 text-emerald-400"
-          strokeWidth={2}
-        />
-      </div>
+      <img
+        src="/argos-mark.svg"
+        alt=""
+        className="size-10"
+      />
 
       <div>
         <p className="text-sm font-semibold tracking-[0.22em] text-white">
@@ -247,17 +248,30 @@ function Sidebar() {
 }
 
 
-function Header() {
+function Header({
+  onOpenNavigation,
+}) {
   return (
-    <header className="flex min-h-20 items-center justify-between border-b border-white/5 px-5 md:px-8">
-      <div>
-        <p className="text-xs font-medium uppercase tracking-[0.18em] text-emerald-400">
-          Network operations
-        </p>
+    <header className="flex min-h-20 items-center justify-between border-b border-white/5 px-4 sm:px-5 md:px-8">
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          aria-label="Open navigation"
+          onClick={onOpenNavigation}
+          className="flex size-10 items-center justify-center rounded-xl border border-white/10 bg-white/[0.03] text-slate-400 transition hover:border-white/20 hover:text-white lg:hidden"
+        >
+          <Menu className="size-5" />
+        </button>
 
-        <h1 className="mt-1 text-xl font-semibold text-white">
-          Fleet Dashboard
-        </h1>
+        <div>
+          <p className="hidden text-xs font-medium uppercase tracking-[0.18em] text-emerald-400 sm:block">
+            Network operations
+          </p>
+
+          <h1 className="text-lg font-semibold text-white sm:mt-1 sm:text-xl">
+            Fleet Dashboard
+          </h1>
+        </div>
       </div>
 
       <div className="flex items-center gap-3">
@@ -274,7 +288,7 @@ function Header() {
             HS
           </div>
 
-          <div>
+          <div className="hidden md:block">
             <p className="text-sm font-medium text-slate-200">
               Administrator
             </p>
@@ -598,6 +612,11 @@ function App() {
   const [search, setSearch] = useState("");
 
   const [
+    isMobileNavigationOpen,
+    setIsMobileNavigationOpen,
+  ] = useState(false);
+
+  const [
     isRegistrationOpen,
     setIsRegistrationOpen,
   ] = useState(false);
@@ -676,7 +695,11 @@ function App() {
       <Sidebar />
 
       <div className="min-w-0 flex-1">
-        <Header />
+        <Header
+          onOpenNavigation={() => {
+            setIsMobileNavigationOpen(true);
+          }}
+        />
 
         <main className="px-5 py-6 md:px-8 md:py-8">
           <div className="mx-auto max-w-7xl">
@@ -771,6 +794,13 @@ function App() {
           </div>
         </main>
       </div>
+
+      <MobileNavigation
+        isOpen={isMobileNavigationOpen}
+        onClose={() => {
+          setIsMobileNavigationOpen(false);
+        }}
+      />
 
       <RouterRegistrationModal
         isOpen={isRegistrationOpen}

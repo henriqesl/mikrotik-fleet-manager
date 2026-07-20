@@ -12,15 +12,22 @@
 
   color: #e2e8f0;
   background: #080c14;
+
   font-synthesis: none;
   text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 * {
   box-sizing: border-box;
+  scrollbar-width: thin;
+  scrollbar-color: rgb(51 65 85) rgb(15 23 42);
 }
 
 html {
+  min-width: 320px;
+  min-height: 100%;
   color-scheme: dark;
   background: #080c14;
 }
@@ -29,11 +36,17 @@ body {
   min-width: 320px;
   min-height: 100vh;
   margin: 0;
+
   background:
     radial-gradient(
       circle at top right,
       rgb(34 197 94 / 8%),
       transparent 28rem
+    ),
+    radial-gradient(
+      circle at bottom left,
+      rgb(16 185 129 / 4%),
+      transparent 32rem
     ),
     #080c14;
 }
@@ -45,6 +58,39 @@ input {
 
 button {
   cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+::selection {
+  color: #ecfdf5;
+  background: rgb(16 185 129 / 35%);
+}
+
+::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgb(15 23 42);
+}
+
+::-webkit-scrollbar-thumb {
+  border: 2px solid rgb(15 23 42);
+  border-radius: 999px;
+  background: rgb(51 65 85);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgb(71 85 105);
+}
+
+:focus-visible {
+  outline: 2px solid rgb(52 211 153 / 80%);
+  outline-offset: 2px;
 }
 
 #root {
