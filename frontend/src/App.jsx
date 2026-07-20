@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { useMemo, useState } from "react";
 
+import { RouterDetailDrawer } from "./components/RouterDetailDrawer";
 import { RouterRegistrationModal } from "./components/RouterRegistrationModal";
 import { useFleetDashboard } from "./hooks/useFleetDashboard";
 
@@ -411,6 +412,7 @@ function RouterTable({
   search,
   setSearch,
   onAddRouter,
+  onSelectRouter,
 }) {
   return (
     <section className="overflow-hidden rounded-2xl border border-white/[0.07] bg-slate-900/40">
@@ -507,7 +509,25 @@ function RouterTable({
                 return (
                   <tr
                     key={routerItem.id}
-                    className="transition hover:bg-white/[0.025]"
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`Open details for ${routerItem.name}`}
+                    onClick={() => {
+                      onSelectRouter(routerItem.id);
+                    }}
+                    onKeyDown={(event) => {
+                      if (
+                        event.key === "Enter"
+                        || event.key === " "
+                      ) {
+                        event.preventDefault();
+
+                        onSelectRouter(
+                          routerItem.id,
+                        );
+                      }
+                    }}
+                    className="cursor-pointer transition hover:bg-white/[0.04] focus:bg-white/[0.04] focus:outline-none"
                   >
                     <td className="px-5 py-4">
                       <div className="flex items-center gap-3">
@@ -581,6 +601,11 @@ function App() {
     isRegistrationOpen,
     setIsRegistrationOpen,
   ] = useState(false);
+
+  const [
+    selectedRouterId,
+    setSelectedRouterId,
+  ] = useState(null);
 
   const {
     routers,
@@ -738,6 +763,9 @@ function App() {
                 onAddRouter={() => {
                   setIsRegistrationOpen(true);
                 }}
+                onSelectRouter={(routerId) => {
+                  setSelectedRouterId(routerId);
+                }}
               />
             </div>
           </div>
@@ -753,6 +781,14 @@ function App() {
           refresh({
             silent: true,
           });
+        }}
+      />
+
+      <RouterDetailDrawer
+        isOpen={selectedRouterId !== null}
+        routerId={selectedRouterId}
+        onClose={() => {
+          setSelectedRouterId(null);
         }}
       />
     </div>
