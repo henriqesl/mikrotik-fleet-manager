@@ -5,7 +5,9 @@ import {
   CircleAlert,
   Gauge,
   LayoutDashboard,
+  LoaderCircle,
   Plus,
+  RefreshCw,
   Router,
   Search,
   Server,
@@ -14,6 +16,10 @@ import {
   Wifi,
   WifiOff,
 } from "lucide-react";
+import { useMemo, useState } from "react";
+
+import { useFleetDashboard } from "./hooks/useFleetDashboard";
+
 
 const navigationItems = [
   {
@@ -38,32 +44,133 @@ const navigationItems = [
   },
 ];
 
-const statistics = [
-  {
-    label: "Total Routers",
-    value: "0",
-    description: "Registered devices",
-    icon: Server,
-  },
-  {
+
+const statusStyles = {
+  online: {
     label: "Online",
-    value: "0",
-    description: "Reachable devices",
-    icon: Wifi,
+    badge:
+      "border-emerald-400/20 bg-emerald-400/10 text-emerald-300",
+    dot: "bg-emerald-400",
   },
-  {
+  offline: {
     label: "Offline",
-    value: "0",
-    description: "Unavailable devices",
-    icon: WifiOff,
+    badge:
+      "border-red-400/20 bg-red-400/10 text-red-300",
+    dot: "bg-red-400",
   },
-  {
-    label: "CPU Alerts",
-    value: "0",
-    description: "Usage above 80%",
-    icon: CircleAlert,
+  error: {
+    label: "Error",
+    badge:
+      "border-amber-400/20 bg-amber-400/10 text-amber-300",
+    dot: "bg-amber-400",
   },
-];
+  unknown: {
+    label: "Unknown",
+    badge:
+      "border-slate-400/20 bg-slate-400/10 text-slate-300",
+    dot: "bg-slate-400",
+  },
+};
+
+
+function getRouterStatus(router) {
+  return String(
+    router.status
+      ?? router.current_status
+      ?? "unknown",
+  ).toLowerCase();
+}
+
+
+function getCpuUsage(router) {
+  const value =
+    router.cpu_usage_percent
+    ?? router.cpu_usage
+    ?? null;
+
+  const number = Number(value);
+
+  return Number.isFinite(number)
+    ? number
+    : null;
+}
+
+
+function getMemoryUsage(router) {
+  const value =
+    router.memory_usage_percent
+    ?? router.memory_usage
+    ?? null;
+
+  const number = Number(value);
+
+  return Number.isFinite(number)
+    ? number
+    : null;
+}
+
+
+function formatPercentage(value) {
+  return value === null
+    ? "—"
+    : `${Math.round(value)}%`;
+}
+
+
+function formatUptime(seconds) {
+  const numericSeconds = Number(seconds);
+
+  if (
+    !Number.isFinite(numericSeconds)
+    || numericSeconds < 0
+  ) {
+    return "—";
+  }
+
+  const days = Math.floor(
+    numericSeconds / 86_400,
+  );
+
+  const hours = Math.floor(
+    (numericSeconds % 86_400) / 3_600,
+  );
+
+  const minutes = Math.floor(
+    (numericSeconds % 3_600) / 60,
+  );
+
+  if (days > 0) {
+    return `${days}d ${hours}h`;
+  }
+
+  if (hours > 0) {
+    return `${hours}h ${minutes}m`;
+  }
+
+  return `${minutes}m`;
+}
+
+
+function formatDateTime(value) {
+  if (!value) {
+    return "Never";
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "—";
+  }
+
+  return new Intl.DateTimeFormat(
+    "pt-BR",
+    {
+      dateStyle: "short",
+      timeStyle: "short",
+    },
+  ).format(date);
+}
+
 
 function Brand() {
   return (
@@ -87,6 +194,7 @@ function Brand() {
     </div>
   );
 }
+
 
 function Sidebar() {
   return (
@@ -112,7 +220,6 @@ function Sidebar() {
               ].join(" ")}
             >
               <Icon className="size-4" />
-
               <span>{item.label}</span>
             </button>
           );
@@ -136,6 +243,7 @@ function Sidebar() {
     </aside>
   );
 }
+
 
 function Header() {
   return (
@@ -179,6 +287,7 @@ function Header() {
   );
 }
 
+
 function StatisticCard({
   label,
   value,
@@ -210,7 +319,93 @@ function StatisticCard({
   );
 }
 
-function EmptyRouterTable() {
+
+function StatusBadge({ status }) {
+  const style =
+    statusStyles[status]
+    ?? statusStyles.unknown;
+
+  return (
+    <span
+      className={[
+        "inline-flex items-center gap-2 rounded-full border px-2.5 py-1",
+        "text-xs font-medium",
+        style.badge,
+      ].join(" ")}
+    >
+      <span
+        className={[
+          "size-1.5 rounded-full",
+          style.dot,
+        ].join(" ")}
+      />
+
+      {style.label}
+    </span>
+  );
+}
+
+
+function LoadingTable() {
+  return (
+    <div className="grid min-h-80 place-items-center p-8">
+      <div className="text-center">
+        <LoaderCircle className="mx-auto size-7 animate-spin text-emerald-400" />
+
+        <p className="mt-3 text-sm text-slate-500">
+          Loading router fleet...
+        </p>
+      </div>
+    </div>
+  );
+}
+
+
+function EmptyRouterTable({ hasSearch }) {
+  return (
+    <div className="grid min-h-80 place-items-center p-8 text-center">
+      <div className="max-w-sm">
+        <div className="mx-auto flex size-14 items-center justify-center rounded-2xl border border-white/[0.07] bg-white/[0.03]">
+          {hasSearch ? (
+            <Search className="size-6 text-slate-500" />
+          ) : (
+            <Router className="size-6 text-slate-500" />
+          )}
+        </div>
+
+        <h3 className="mt-5 font-semibold text-slate-200">
+          {hasSearch
+            ? "No matching routers"
+            : "No routers registered"}
+        </h3>
+
+        <p className="mt-2 text-sm leading-6 text-slate-500">
+          {hasSearch
+            ? "Try searching by another name, IP address, model or identity."
+            : "Add your first MikroTik router to begin monitoring connectivity, CPU, memory and uptime."}
+        </p>
+
+        {!hasSearch && (
+          <button
+            type="button"
+            className="mx-auto mt-5 flex items-center gap-1 text-sm font-medium text-emerald-400 transition hover:text-emerald-300"
+          >
+            Register a router
+            <ChevronRight className="size-4" />
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+
+function RouterTable({
+  routers,
+  isLoading,
+  search,
+  setSearch,
+}) {
   return (
     <section className="overflow-hidden rounded-2xl border border-white/[0.07] bg-slate-900/40">
       <div className="flex flex-col gap-4 border-b border-white/[0.06] p-5 md:flex-row md:items-center md:justify-between">
@@ -230,6 +425,10 @@ function EmptyRouterTable() {
 
             <input
               type="search"
+              value={search}
+              onChange={(event) => {
+                setSearch(event.target.value);
+              }}
               placeholder="Search by name or IP"
               className="h-10 w-full rounded-xl border border-white/10 bg-slate-950/70 pl-10 pr-4 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-emerald-400/40 sm:w-64"
             />
@@ -245,35 +444,195 @@ function EmptyRouterTable() {
         </div>
       </div>
 
-      <div className="grid min-h-80 place-items-center p-8 text-center">
-        <div className="max-w-sm">
-          <div className="mx-auto flex size-14 items-center justify-center rounded-2xl border border-white/[0.07] bg-white/[0.03]">
-            <Router className="size-6 text-slate-500" />
-          </div>
+      {isLoading ? (
+        <LoadingTable />
+      ) : routers.length === 0 ? (
+        <EmptyRouterTable
+          hasSearch={search.trim().length > 0}
+        />
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[1000px] text-left">
+            <thead className="border-b border-white/[0.06] bg-slate-950/30">
+              <tr className="text-xs uppercase tracking-wider text-slate-500">
+                <th className="px-5 py-3 font-medium">
+                  Router
+                </th>
 
-          <h3 className="mt-5 font-semibold text-slate-200">
-            No routers registered
-          </h3>
+                <th className="px-5 py-3 font-medium">
+                  Status
+                </th>
 
-          <p className="mt-2 text-sm leading-6 text-slate-500">
-            Add your first MikroTik router to begin monitoring
-            connectivity, CPU, memory and uptime.
-          </p>
+                <th className="px-5 py-3 font-medium">
+                  Model
+                </th>
 
-          <button
-            type="button"
-            className="mx-auto mt-5 flex items-center gap-1 text-sm font-medium text-emerald-400 transition hover:text-emerald-300"
-          >
-            Register a router
-            <ChevronRight className="size-4" />
-          </button>
+                <th className="px-5 py-3 font-medium">
+                  CPU
+                </th>
+
+                <th className="px-5 py-3 font-medium">
+                  Memory
+                </th>
+
+                <th className="px-5 py-3 font-medium">
+                  Uptime
+                </th>
+
+                <th className="px-5 py-3 font-medium">
+                  Last check
+                </th>
+              </tr>
+            </thead>
+
+            <tbody className="divide-y divide-white/[0.05]">
+              {routers.map((routerItem) => {
+                const status =
+                  getRouterStatus(routerItem);
+
+                const cpuUsage =
+                  getCpuUsage(routerItem);
+
+                const memoryUsage =
+                  getMemoryUsage(routerItem);
+
+                return (
+                  <tr
+                    key={routerItem.id}
+                    className="transition hover:bg-white/[0.025]"
+                  >
+                    <td className="px-5 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-white/[0.07] bg-white/[0.03]">
+                          <Router className="size-4 text-slate-400" />
+                        </div>
+
+                        <div>
+                          <p className="text-sm font-medium text-slate-200">
+                            {routerItem.name}
+                          </p>
+
+                          <p className="mt-0.5 text-xs text-slate-500">
+                            {routerItem.management_ip}
+                          </p>
+                        </div>
+                      </div>
+                    </td>
+
+                    <td className="px-5 py-4">
+                      <StatusBadge status={status} />
+                    </td>
+
+                    <td className="px-5 py-4">
+                      <p className="text-sm text-slate-300">
+                        {routerItem.model ?? "—"}
+                      </p>
+
+                      <p className="mt-0.5 text-xs text-slate-600">
+                        {routerItem.routeros_version
+                          ?? routerItem.identity
+                          ?? "No device data"}
+                      </p>
+                    </td>
+
+                    <td className="px-5 py-4 text-sm text-slate-300">
+                      {formatPercentage(cpuUsage)}
+                    </td>
+
+                    <td className="px-5 py-4 text-sm text-slate-300">
+                      {formatPercentage(memoryUsage)}
+                    </td>
+
+                    <td className="px-5 py-4 text-sm text-slate-300">
+                      {formatUptime(
+                        routerItem.uptime_seconds,
+                      )}
+                    </td>
+
+                    <td className="px-5 py-4 text-sm text-slate-400">
+                      {formatDateTime(
+                        routerItem.last_checked_at,
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
-      </div>
+      )}
     </section>
   );
 }
 
+
 function App() {
+  const [search, setSearch] = useState("");
+
+  const {
+    routers,
+    monitoringStatus,
+    statistics,
+    isLoading,
+    isRefreshing,
+    error,
+    lastUpdatedAt,
+    refresh,
+  } = useFleetDashboard();
+
+  const filteredRouters = useMemo(() => {
+    const normalizedSearch =
+      search.trim().toLowerCase();
+
+    if (!normalizedSearch) {
+      return routers;
+    }
+
+    return routers.filter((routerItem) => {
+      const searchableValues = [
+        routerItem.name,
+        routerItem.management_ip,
+        routerItem.public_ip,
+        routerItem.model,
+        routerItem.identity,
+      ];
+
+      return searchableValues.some(
+        (value) =>
+          String(value ?? "")
+            .toLowerCase()
+            .includes(normalizedSearch),
+      );
+    });
+  }, [routers, search]);
+
+  const statisticCards = [
+    {
+      label: "Total Routers",
+      value: statistics.total,
+      description: "Registered active devices",
+      icon: Server,
+    },
+    {
+      label: "Online",
+      value: statistics.online,
+      description: "Reachable devices",
+      icon: Wifi,
+    },
+    {
+      label: "Offline",
+      value: statistics.offline,
+      description: "Unavailable devices",
+      icon: WifiOff,
+    },
+    {
+      label: "CPU Alerts",
+      value: statistics.cpuAlerts,
+      description: "Usage at or above 80%",
+      icon: CircleAlert,
+    },
+  ];
+
   return (
     <div className="min-h-screen lg:flex">
       <Sidebar />
@@ -283,16 +642,73 @@ function App() {
 
         <main className="px-5 py-6 md:px-8 md:py-8">
           <div className="mx-auto max-w-7xl">
-            <div className="mb-6 flex items-center gap-2 rounded-xl border border-emerald-400/10 bg-emerald-400/5 px-4 py-3 text-sm text-emerald-200">
-              <Gauge className="size-4 shrink-0" />
+            <div className="mb-6 flex flex-col gap-3 rounded-xl border border-emerald-400/10 bg-emerald-400/5 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-2 text-sm text-emerald-200">
+                <Gauge className="size-4 shrink-0" />
 
-              <span>
-                ARGOS frontend foundation is operational.
-              </span>
+                <span>
+                  Polling worker:{" "}
+                  <strong>
+                    {monitoringStatus?.worker_running
+                      ? "running"
+                      : "stopped"}
+                  </strong>
+                </span>
+
+                {monitoringStatus?.cycle_in_progress && (
+                  <span className="text-emerald-400">
+                    · cycle in progress
+                  </span>
+                )}
+              </div>
+
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-slate-500">
+                  {lastUpdatedAt
+                    ? `Updated ${lastUpdatedAt.toLocaleTimeString("pt-BR")}`
+                    : "Waiting for data"}
+                </span>
+
+                <button
+                  type="button"
+                  disabled={isRefreshing}
+                  onClick={() => {
+                    refresh();
+                  }}
+                  className="flex items-center gap-2 rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-slate-300 transition hover:border-white/20 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <RefreshCw
+                    className={[
+                      "size-3.5",
+                      isRefreshing
+                        ? "animate-spin"
+                        : "",
+                    ].join(" ")}
+                  />
+
+                  Refresh
+                </button>
+              </div>
             </div>
 
+            {error && (
+              <div className="mb-6 flex items-start gap-3 rounded-xl border border-red-400/20 bg-red-400/10 px-4 py-3">
+                <CircleAlert className="mt-0.5 size-4 shrink-0 text-red-300" />
+
+                <div>
+                  <p className="text-sm font-medium text-red-200">
+                    Unable to update all dashboard data
+                  </p>
+
+                  <p className="mt-1 text-xs leading-5 text-red-300/70">
+                    {error}
+                  </p>
+                </div>
+              </div>
+            )}
+
             <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-              {statistics.map((statistic) => (
+              {statisticCards.map((statistic) => (
                 <StatisticCard
                   key={statistic.label}
                   {...statistic}
@@ -301,7 +717,12 @@ function App() {
             </section>
 
             <div className="mt-6">
-              <EmptyRouterTable />
+              <RouterTable
+                routers={filteredRouters}
+                isLoading={isLoading}
+                search={search}
+                setSearch={setSearch}
+              />
             </div>
           </div>
         </main>
@@ -309,5 +730,6 @@ function App() {
     </div>
   );
 }
+
 
 export default App;
