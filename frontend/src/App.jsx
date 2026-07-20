@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { useMemo, useState } from "react";
 
+import { RouterRegistrationModal } from "./components/RouterRegistrationModal";
 import { useFleetDashboard } from "./hooks/useFleetDashboard";
 
 
@@ -88,10 +89,10 @@ function getCpuUsage(router) {
     ?? router.cpu_usage
     ?? null;
 
-  const number = Number(value);
+  const numericValue = Number(value);
 
-  return Number.isFinite(number)
-    ? number
+  return Number.isFinite(numericValue)
+    ? numericValue
     : null;
 }
 
@@ -102,10 +103,10 @@ function getMemoryUsage(router) {
     ?? router.memory_usage
     ?? null;
 
-  const number = Number(value);
+  const numericValue = Number(value);
 
-  return Number.isFinite(number)
-    ? number
+  return Number.isFinite(numericValue)
+    ? numericValue
     : null;
 }
 
@@ -361,7 +362,10 @@ function LoadingTable() {
 }
 
 
-function EmptyRouterTable({ hasSearch }) {
+function EmptyRouterTable({
+  hasSearch,
+  onAddRouter,
+}) {
   return (
     <div className="grid min-h-80 place-items-center p-8 text-center">
       <div className="max-w-sm">
@@ -388,6 +392,7 @@ function EmptyRouterTable({ hasSearch }) {
         {!hasSearch && (
           <button
             type="button"
+            onClick={onAddRouter}
             className="mx-auto mt-5 flex items-center gap-1 text-sm font-medium text-emerald-400 transition hover:text-emerald-300"
           >
             Register a router
@@ -405,6 +410,7 @@ function RouterTable({
   isLoading,
   search,
   setSearch,
+  onAddRouter,
 }) {
   return (
     <section className="overflow-hidden rounded-2xl border border-white/[0.07] bg-slate-900/40">
@@ -436,6 +442,7 @@ function RouterTable({
 
           <button
             type="button"
+            onClick={onAddRouter}
             className="flex h-10 items-center justify-center gap-2 rounded-xl bg-emerald-400 px-4 text-sm font-semibold text-slate-950 transition hover:bg-emerald-300"
           >
             <Plus className="size-4" />
@@ -449,6 +456,7 @@ function RouterTable({
       ) : routers.length === 0 ? (
         <EmptyRouterTable
           hasSearch={search.trim().length > 0}
+          onAddRouter={onAddRouter}
         />
       ) : (
         <div className="overflow-x-auto">
@@ -568,6 +576,11 @@ function RouterTable({
 
 function App() {
   const [search, setSearch] = useState("");
+
+  const [
+    isRegistrationOpen,
+    setIsRegistrationOpen,
+  ] = useState(false);
 
   const {
     routers,
@@ -722,11 +735,26 @@ function App() {
                 isLoading={isLoading}
                 search={search}
                 setSearch={setSearch}
+                onAddRouter={() => {
+                  setIsRegistrationOpen(true);
+                }}
               />
             </div>
           </div>
         </main>
       </div>
+
+      <RouterRegistrationModal
+        isOpen={isRegistrationOpen}
+        onClose={() => {
+          setIsRegistrationOpen(false);
+        }}
+        onCreated={() => {
+          refresh({
+            silent: true,
+          });
+        }}
+      />
     </div>
   );
 }
