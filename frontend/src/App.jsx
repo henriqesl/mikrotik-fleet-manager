@@ -790,6 +790,11 @@ function App() {
         onClose={() => {
           setSelectedRouterId(null);
         }}
+        onChanged={() => {
+          refresh({
+            silent: true,
+          });
+        }}
       />
     </div>
   );

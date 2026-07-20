@@ -7,10 +7,13 @@ import {
   HardDrive,
   LoaderCircle,
   Network,
+  Pencil,
   RefreshCw,
   Router,
+  Save,
   ShieldCheck,
   TimerReset,
+  Trash2,
   X,
 } from "lucide-react";
 import {
@@ -19,6 +22,7 @@ import {
   useState,
 } from "react";
 
+import { monitoringService } from "../services/monitoringService";
 import { routerService } from "../services/routerService";
 
 
@@ -212,6 +216,7 @@ export function RouterDetailDrawer({
   isOpen,
   routerId,
   onClose,
+  onChanged,
 }) {
   const [routerData, setRouterData] =
     useState(null);
@@ -221,6 +226,36 @@ export function RouterDetailDrawer({
 
   const [error, setError] =
     useState(null);
+
+  const [isEditing, setIsEditing] =
+    useState(false);
+
+  const [editForm, setEditForm] =
+    useState({
+      name: "",
+      publicIp: "",
+    });
+
+  const [fieldError, setFieldError] =
+    useState(null);
+
+  const [actionError, setActionError] =
+    useState(null);
+
+  const [isSaving, setIsSaving] =
+    useState(false);
+
+  const [isPolling, setIsPolling] =
+    useState(false);
+
+  const [isDeactivating, setIsDeactivating] =
+    useState(false);
+
+  const [
+    showDeactivateConfirmation,
+    setShowDeactivateConfirmation,
+  ] = useState(false);
+
 
   const loadRouter = useCallback(async () => {
     if (
@@ -239,6 +274,11 @@ export function RouterDetailDrawer({
       );
 
       setRouterData(router);
+
+      setEditForm({
+        name: router.name ?? "",
+        publicIp: router.public_ip ?? "",
+      });
     } catch (requestError) {
       setError(
         requestError?.message
@@ -249,14 +289,21 @@ export function RouterDetailDrawer({
     }
   }, [routerId]);
 
+
   useEffect(() => {
     if (!isOpen) {
       return;
     }
 
     setRouterData(null);
+    setIsEditing(false);
+    setFieldError(null);
+    setActionError(null);
+    setShowDeactivateConfirmation(false);
+
     loadRouter();
   }, [isOpen, loadRouter]);
+
 
   useEffect(() => {
     if (!isOpen) {
@@ -282,9 +329,11 @@ export function RouterDetailDrawer({
     };
   }, [isOpen, onClose]);
 
+
   if (!isOpen) {
     return null;
   }
+
 
   function handleBackdropClick(event) {
     if (event.target === event.currentTarget) {
@@ -292,25 +341,150 @@ export function RouterDetailDrawer({
     }
   }
 
-  const status = getRouterStatus(routerData);
 
-  const cpuUsage = getPercentage(
-    routerData,
-    "cpu_usage_percent",
-    "cpu_usage",
-  );
+  function startEditing() {
+    setEditForm({
+      name: routerData?.name ?? "",
+      publicIp: routerData?.public_ip ?? "",
+    });
 
-  const memoryUsage = getPercentage(
-    routerData,
-    "memory_usage_percent",
-    "memory_usage",
-  );
+    setFieldError(null);
+    setActionError(null);
+    setIsEditing(true);
+  }
+
+
+  function cancelEditing() {
+    setEditForm({
+      name: routerData?.name ?? "",
+      publicIp: routerData?.public_ip ?? "",
+    });
+
+    setFieldError(null);
+    setActionError(null);
+    setIsEditing(false);
+  }
+
+
+  async function handleSave(event) {
+    event.preventDefault();
+
+    const normalizedName =
+      editForm.name.trim();
+
+    if (!normalizedName) {
+      setFieldError(
+        "Router name is required.",
+      );
+
+      return;
+    }
+
+    setIsSaving(true);
+    setFieldError(null);
+    setActionError(null);
+
+    try {
+      const updatedRouter =
+        await routerService.update(
+          routerId,
+          {
+            name: normalizedName,
+            public_ip:
+              editForm.publicIp.trim()
+              || null,
+          },
+        );
+
+      setRouterData(updatedRouter);
+
+      setEditForm({
+        name: updatedRouter.name ?? "",
+        publicIp:
+          updatedRouter.public_ip ?? "",
+      });
+
+      setIsEditing(false);
+
+      onChanged?.(updatedRouter);
+    } catch (requestError) {
+      setActionError(
+        requestError?.message
+          ?? "Unable to update the router.",
+      );
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+
+  async function handlePolling() {
+    setIsPolling(true);
+    setActionError(null);
+
+    try {
+      await monitoringService.triggerPolling();
+      await loadRouter();
+
+      onChanged?.();
+    } catch (requestError) {
+      setActionError(
+        requestError?.message
+          ?? "Unable to execute router polling.",
+      );
+    } finally {
+      setIsPolling(false);
+    }
+  }
+
+
+  async function handleDeactivate() {
+    setIsDeactivating(true);
+    setActionError(null);
+
+    try {
+      await routerService.deactivate(
+        routerId,
+      );
+
+      onChanged?.();
+      onClose();
+    } catch (requestError) {
+      setActionError(
+        requestError?.message
+          ?? "Unable to deactivate the router.",
+      );
+
+      setShowDeactivateConfirmation(false);
+    } finally {
+      setIsDeactivating(false);
+    }
+  }
+
+
+  const status =
+    getRouterStatus(routerData);
+
+  const cpuUsage =
+    getPercentage(
+      routerData,
+      "cpu_usage_percent",
+      "cpu_usage",
+    );
+
+  const memoryUsage =
+    getPercentage(
+      routerData,
+      "memory_usage_percent",
+      "memory_usage",
+    );
 
   const lastSuccessfulContact =
     routerData?.last_successful_contact_at
     ?? routerData?.last_seen_at
     ?? routerData?.last_online_at
     ?? null;
+
 
   return (
     <div
@@ -352,14 +526,27 @@ export function RouterDetailDrawer({
             </div>
           </div>
 
-          <button
-            type="button"
-            aria-label="Close router details"
-            onClick={onClose}
-            className="flex size-9 shrink-0 items-center justify-center rounded-xl text-slate-500 transition hover:bg-white/5 hover:text-white"
-          >
-            <X className="size-5" />
-          </button>
+          <div className="flex items-center gap-1">
+            {routerData && !isEditing && (
+              <button
+                type="button"
+                aria-label="Edit router"
+                onClick={startEditing}
+                className="flex size-9 shrink-0 items-center justify-center rounded-xl text-slate-500 transition hover:bg-white/5 hover:text-white"
+              >
+                <Pencil className="size-4" />
+              </button>
+            )}
+
+            <button
+              type="button"
+              aria-label="Close router details"
+              onClick={onClose}
+              className="flex size-9 shrink-0 items-center justify-center rounded-xl text-slate-500 transition hover:bg-white/5 hover:text-white"
+            >
+              <X className="size-5" />
+            </button>
+          </div>
         </header>
 
         <div className="flex-1 overflow-y-auto">
@@ -400,6 +587,24 @@ export function RouterDetailDrawer({
             </div>
           ) : routerData ? (
             <div className="space-y-6 p-5 sm:p-6">
+              {actionError && (
+                <div className="rounded-xl border border-red-400/20 bg-red-400/10 px-4 py-3">
+                  <div className="flex items-start gap-3">
+                    <AlertTriangle className="mt-0.5 size-4 shrink-0 text-red-300" />
+
+                    <div>
+                      <p className="text-sm font-medium text-red-200">
+                        Action failed
+                      </p>
+
+                      <p className="mt-1 text-xs leading-5 text-red-300/80">
+                        {actionError}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {routerData.last_error && (
                 <div className="rounded-xl border border-amber-400/20 bg-amber-400/10 px-4 py-3">
                   <div className="flex items-start gap-3">
@@ -418,36 +623,159 @@ export function RouterDetailDrawer({
                 </div>
               )}
 
+              {isEditing && (
+                <section>
+                  <h3 className="mb-3 text-sm font-semibold text-white">
+                    Edit router
+                  </h3>
+
+                  <form
+                    onSubmit={handleSave}
+                    className="space-y-4 rounded-xl border border-white/[0.07] bg-slate-950/35 p-4"
+                  >
+                    <div>
+                      <label
+                        htmlFor="edit-router-name"
+                        className="mb-2 block text-sm font-medium text-slate-300"
+                      >
+                        Router name
+                      </label>
+
+                      <input
+                        id="edit-router-name"
+                        type="text"
+                        value={editForm.name}
+                        onChange={(event) => {
+                          setEditForm((current) => ({
+                            ...current,
+                            name: event.target.value,
+                          }));
+
+                          setFieldError(null);
+                        }}
+                        className={[
+                          "h-11 w-full rounded-xl border bg-slate-950/70 px-3",
+                          "text-sm text-white outline-none transition",
+                          fieldError
+                            ? "border-red-400/40 focus:border-red-400"
+                            : "border-white/10 focus:border-emerald-400/50",
+                        ].join(" ")}
+                      />
+
+                      {fieldError && (
+                        <p className="mt-1.5 text-xs text-red-300">
+                          {fieldError}
+                        </p>
+                      )}
+                    </div>
+
+                    <div>
+                      <label
+                        htmlFor="edit-public-ip"
+                        className="mb-2 block text-sm font-medium text-slate-300"
+                      >
+                        Public IP
+                      </label>
+
+                      <input
+                        id="edit-public-ip"
+                        type="text"
+                        value={editForm.publicIp}
+                        onChange={(event) => {
+                          setEditForm((current) => ({
+                            ...current,
+                            publicIp:
+                              event.target.value,
+                          }));
+                        }}
+                        placeholder="Optional"
+                        className="h-11 w-full rounded-xl border border-white/10 bg-slate-950/70 px-3 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-emerald-400/50"
+                      />
+                    </div>
+
+                    <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                      <button
+                        type="button"
+                        disabled={isSaving}
+                        onClick={cancelEditing}
+                        className="h-10 rounded-xl border border-white/10 px-4 text-sm font-medium text-slate-300 transition hover:border-white/20 hover:text-white disabled:opacity-50"
+                      >
+                        Cancel
+                      </button>
+
+                      <button
+                        type="submit"
+                        disabled={isSaving}
+                        className="flex h-10 items-center justify-center gap-2 rounded-xl bg-emerald-400 px-4 text-sm font-semibold text-slate-950 transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {isSaving ? (
+                          <>
+                            <LoaderCircle className="size-4 animate-spin" />
+                            Saving...
+                          </>
+                        ) : (
+                          <>
+                            <Save className="size-4" />
+                            Save changes
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </form>
+                </section>
+              )}
+
               <section>
-                <div className="mb-3 flex items-center justify-between">
+                <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <h3 className="text-sm font-semibold text-white">
                     Operational metrics
                   </h3>
 
-                  <button
-                    type="button"
-                    disabled={isLoading}
-                    onClick={loadRouter}
-                    className="flex items-center gap-2 rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-slate-400 transition hover:border-white/20 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    <RefreshCw
-                      className={[
-                        "size-3.5",
-                        isLoading
-                          ? "animate-spin"
-                          : "",
-                      ].join(" ")}
-                    />
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      disabled={isPolling}
+                      onClick={handlePolling}
+                      className="flex items-center gap-2 rounded-lg bg-emerald-400 px-3 py-1.5 text-xs font-semibold text-slate-950 transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {isPolling ? (
+                        <LoaderCircle className="size-3.5 animate-spin" />
+                      ) : (
+                        <RefreshCw className="size-3.5" />
+                      )}
 
-                    Refresh
-                  </button>
+                      {isPolling
+                        ? "Polling..."
+                        : "Poll now"}
+                    </button>
+
+                    <button
+                      type="button"
+                      disabled={isLoading}
+                      onClick={loadRouter}
+                      className="flex items-center gap-2 rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-slate-400 transition hover:border-white/20 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <RefreshCw
+                        className={[
+                          "size-3.5",
+                          isLoading
+                            ? "animate-spin"
+                            : "",
+                        ].join(" ")}
+                      />
+
+                      Refresh
+                    </button>
+                  </div>
                 </div>
 
                 <div className="grid gap-3 sm:grid-cols-3">
                   <MetricCard
                     icon={Cpu}
                     label="CPU"
-                    value={formatPercentage(cpuUsage)}
+                    value={formatPercentage(
+                      cpuUsage,
+                    )}
                   />
 
                   <MetricCard
@@ -548,6 +876,86 @@ export function RouterDetailDrawer({
                       lastSuccessfulContact,
                     )}
                   />
+                </div>
+              </section>
+
+              <section className="rounded-xl border border-red-400/15 bg-red-400/[0.04] p-4">
+                <div className="flex items-start gap-3">
+                  <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-red-400/10 text-red-300">
+                    <Trash2 className="size-4" />
+                  </div>
+
+                  <div className="flex-1">
+                    <h3 className="text-sm font-semibold text-red-200">
+                      Deactivate router
+                    </h3>
+
+                    <p className="mt-1 text-xs leading-5 text-slate-500">
+                      The router will be removed from
+                      active monitoring, but its database
+                      record will be preserved.
+                    </p>
+
+                    {showDeactivateConfirmation ? (
+                      <div className="mt-4 rounded-xl border border-red-400/20 bg-red-400/10 p-3">
+                        <p className="text-sm text-red-200">
+                          Confirm deactivation of{" "}
+                          <strong>
+                            {routerData.name}
+                          </strong>
+                          ?
+                        </p>
+
+                        <div className="mt-3 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                          <button
+                            type="button"
+                            disabled={isDeactivating}
+                            onClick={() => {
+                              setShowDeactivateConfirmation(
+                                false,
+                              );
+                            }}
+                            className="h-9 rounded-lg border border-white/10 px-3 text-xs font-medium text-slate-300 transition hover:border-white/20 hover:text-white disabled:opacity-50"
+                          >
+                            Cancel
+                          </button>
+
+                          <button
+                            type="button"
+                            disabled={isDeactivating}
+                            onClick={handleDeactivate}
+                            className="flex h-9 items-center justify-center gap-2 rounded-lg bg-red-400 px-3 text-xs font-semibold text-slate-950 transition hover:bg-red-300 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            {isDeactivating ? (
+                              <>
+                                <LoaderCircle className="size-3.5 animate-spin" />
+                                Deactivating...
+                              </>
+                            ) : (
+                              <>
+                                <Trash2 className="size-3.5" />
+                                Confirm
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActionError(null);
+                          setShowDeactivateConfirmation(
+                            true,
+                          );
+                        }}
+                        className="mt-4 flex h-9 items-center justify-center gap-2 rounded-lg border border-red-400/30 px-3 text-xs font-semibold text-red-300 transition hover:bg-red-400/10"
+                      >
+                        <Trash2 className="size-3.5" />
+                        Deactivate router
+                      </button>
+                    )}
+                  </div>
                 </div>
               </section>
             </div>
