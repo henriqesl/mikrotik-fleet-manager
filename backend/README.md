@@ -1,61 +1,123 @@
 # ARGOS Backend
 
-FastAPI backend responsible for managing, monitoring and communicating with MikroTik routers.
+**MikroTik Fleet Manager API**
 
-## Responsibilities
+Backend responsible for registering, monitoring and managing MikroTik routers through secure RouterOS API connections.
 
-* Manage registered MikroTik routers
-* Communicate with devices through the RouterOS API
-* Collect router information and monitoring metrics
-* Store router data in a local database
-* Provide REST API endpoints to the frontend
-* Run periodic background monitoring tasks
-* Handle connection failures and offline devices
+## Main Features
 
-## Planned Technologies
+* Router registration and inventory
+* RouterOS API-SSL connection validation
+* Encrypted RouterOS credentials
+* WireGuard management network restrictions
+* Router status, CPU, memory and uptime collection
+* Concurrent background polling
+* Configurable polling interval and concurrency
+* Router activation and deactivation
+* Manual polling trigger
+* SQLite database with Alembic migrations
+* Interactive OpenAPI documentation
 
-* Python
-* FastAPI
-* SQLAlchemy
-* SQLite
-* Pydantic
-* RouterOS API
-* AsyncIO
+## Requirements
 
-## Planned Structure
+* Python 3.10 or newer
+* Access to the WireGuard management network
+* RouterOS API-SSL enabled on managed routers
+* Trusted RouterOS certificate authority
 
-```text
-backend/
-├── app/
-│   ├── main.py
-│   ├── database.py
-│   ├── models.py
-│   ├── schemas.py
-│   ├── routes/
-│   ├── services/
-│   └── workers/
-├── .env
-├── .env.example
-├── requirements.txt
-└── README.md
+## Development Setup
+
+Create and activate the virtual environment:
+
+```powershell
+py -m venv .venv
+.\.venv\Scripts\Activate.ps1
 ```
 
-## Environment Variables
+Install the application dependencies:
 
-The real environment variables will be stored in:
-
-```text
-backend/.env
+```powershell
+pip install -r requirements.txt
 ```
 
-This file must not be committed to Git.
+Create the local environment file:
 
-An example configuration will be available in:
-
-```text
-backend/.env.example
+```powershell
+Copy-Item .env.example .env
 ```
 
-## Project Status
+Generate a credential encryption key:
 
-The backend implementation will be added in the next development steps.
+```powershell
+python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+```
+
+Add the generated value to `.env`:
+
+```env
+CREDENTIAL_ENCRYPTION_KEY=generated-key
+```
+
+Apply the database migrations:
+
+```powershell
+python -m alembic upgrade head
+```
+
+Start the API:
+
+```powershell
+python -m uvicorn app.main:app --reload
+```
+
+## API Documentation
+
+Swagger UI:
+
+```text
+http://127.0.0.1:8000/docs
+```
+
+ReDoc:
+
+```text
+http://127.0.0.1:8000/redoc
+```
+
+## Tests
+
+Install development dependencies:
+
+```powershell
+pip install -r requirements-dev.txt
+```
+
+Run the test suite:
+
+```powershell
+pytest
+```
+
+## RouterOS Connectivity
+
+ARGOS is designed to reach customer routers through a private WireGuard management network.
+
+```text
+ARGOS Server
+      |
+      | WireGuard
+      v
+Central CHR
+      |
+      +---- Customer MikroTik 1
+      +---- Customer MikroTik 2
+      +---- Customer MikroTik N
+```
+
+RouterOS API services should not be exposed directly to the public internet.
+
+## Current Status
+
+Backend MVP completed.
+
+Authentication, role-based access control, historical metrics, alerts and production deployment hardening will be implemented in later stages.
