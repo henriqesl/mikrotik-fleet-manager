@@ -56,6 +56,36 @@ class Settings(BaseSettings):
         le=3600,
     )
 
+    poll_batch_size: int = Field(
+        default=20,
+        ge=1,
+        le=100,
+    )
+
+    poll_scheduler_tick_seconds: float = Field(
+        default=1.0,
+        ge=0.1,
+        le=60.0,
+    )
+
+    poll_lease_seconds: int = Field(
+        default=120,
+        ge=10,
+        le=3600,
+    )
+
+    poll_max_backoff_seconds: int = Field(
+        default=900,
+        ge=60,
+        le=86400,
+    )
+
+    poll_initial_stagger_seconds: int = Field(
+        default=60,
+        ge=0,
+        le=3600,
+    )
+
     polling_enabled: bool = True
     log_level: str = "INFO"
 
