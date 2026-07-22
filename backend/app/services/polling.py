@@ -103,7 +103,7 @@ async def reserve_due_polling_targets(
     worker_id: str,
     now: datetime | None = None,
 ) -> list[RouterPollingTarget]:
-    """Reserve and return one batch of routers ready for polling."""
+    """Atomically reserve one batch of routers for polling."""
 
     lease_started_at = now or datetime.now(timezone.utc)
     lease_until = lease_started_at + timedelta(
@@ -112,40 +112,37 @@ async def reserve_due_polling_targets(
 
     async with AsyncSessionFactory() as session:
         repository = RouterRepository(session)
-        routers = await repository.list_due_routers(
-            now=lease_started_at,
-            limit=settings.poll_batch_size,
-        )
 
         try:
-            targets: list[RouterPollingTarget] = []
+            routers = await repository.reserve_due_routers(
+                worker_id=worker_id,
+                now=lease_started_at,
+                lease_until=lease_until,
+                limit=settings.poll_batch_size,
+            )
 
-            for router in routers:
-                router.poll_lease_owner = worker_id
-                router.poll_lease_until = lease_until
-                router.last_poll_started_at = lease_started_at
-
-                targets.append(
-                    RouterPollingTarget(
-                        router_id=router.id,
-                        management_ip=router.management_ip,
-                        api_port=router.api_port,
-                        username=router.username,
-                        password_ciphertext=(
-                            router.password_ciphertext
-                        ),
-                    )
+            targets = [
+                RouterPollingTarget(
+                    router_id=router.id,
+                    management_ip=router.management_ip,
+                    api_port=router.api_port,
+                    username=router.username,
+                    password_ciphertext=(
+                        router.password_ciphertext
+                    ),
                 )
+                for router in routers
+            ]
 
             await session.commit()
+            return targets
+
         except Exception:
             await session.rollback()
             logger.exception(
                 "Unable to reserve routers for polling."
             )
             raise
-
-    return targets
 
 
 async def poll_router(

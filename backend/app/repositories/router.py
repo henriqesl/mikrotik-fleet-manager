@@ -170,16 +170,18 @@ class RouterRepository:
         return list(result.all())
 
 
-    async def list_due_routers(
+    async def reserve_due_routers(
         self,
         *,
+        worker_id: str,
         now: datetime,
+        lease_until: datetime,
         limit: int,
     ) -> list[Router]:
-        """Return routers ready for polling and without an active lease."""
+        """Atomically reserve one batch of due routers."""
 
-        statement = (
-            select(Router)
+        candidate_ids = (
+            select(Router.id)
             .where(
                 Router.is_active.is_(True),
                 Router.next_poll_at.is_not(None),
@@ -196,8 +198,31 @@ class RouterRepository:
             .limit(limit)
         )
 
-        result = await self._session.scalars(statement)
-        
+        statement = (
+            update(Router)
+            .where(
+                Router.id.in_(candidate_ids),
+                Router.is_active.is_(True),
+                or_(
+                    Router.poll_lease_until.is_(None),
+                    Router.poll_lease_until <= now,
+                ),
+            )
+            .values(
+                poll_lease_owner=worker_id,
+                poll_lease_until=lease_until,
+                last_poll_started_at=now,
+            )
+            .returning(Router)
+        )
+
+        result = await self._session.scalars(
+            statement,
+            execution_options={
+                "synchronize_session": False,
+            },
+        )
+
         return list(result.all())
 
 

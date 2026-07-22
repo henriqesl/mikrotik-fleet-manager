@@ -21,6 +21,14 @@ class Settings(BaseSettings):
     database_url: str = "sqlite+aiosqlite:///./argos.db"
     database_echo: bool = False
 
+    sqlite_wal_enabled: bool = True
+
+    sqlite_busy_timeout_ms: int = Field(
+        default=5000,
+        ge=100,
+        le=60000,
+    )
+
     routeros_ca_file: str = "certs/routeros-ca.pem"
     routeros_socket_timeout_seconds: float = 5.0
 
