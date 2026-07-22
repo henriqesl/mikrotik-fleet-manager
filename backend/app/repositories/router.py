@@ -1,9 +1,22 @@
 from datetime import datetime
 
-from sqlalchemy import func, or_, select
+from dataclasses import dataclass
+from datetime import datetime
+
+from sqlalchemy import func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.router import Router
+
+@dataclass(frozen=True, slots=True)
+class PollingOverview:
+    """Database-backed overview of the polling scheduler."""
+
+    active_routers: int
+    due_routers: int
+    leased_routers: int
+    last_started_at: datetime | None
+    last_finished_at: datetime | None
 
 class RouterRepository:
     """Handle database operations related to routers."""
@@ -186,3 +199,115 @@ class RouterRepository:
         result = await self._session.scalars(statement)
         
         return list(result.all())
+
+
+    async def queue_all_active_routers(
+        self,
+        *,
+        now: datetime,
+    ) -> int:
+        """Mark every available active router for immediate polling."""
+
+        statement = (
+            update(Router)
+            .where(
+                Router.is_active.is_(True),
+                or_(
+                    Router.poll_lease_until.is_(None),
+                    Router.poll_lease_until <= now,
+                ),
+            )
+            .values(next_poll_at=now)
+        )
+
+        result = await self._session.execute(statement)
+        return int(result.rowcount or 0)
+
+    async def queue_router_for_polling(
+        self,
+        *,
+        router_id: int,
+        now: datetime,
+    ) -> str:
+        """Request immediate polling for one router."""
+
+        router = await self.get_by_id(router_id)
+
+        if router is None:
+            return "not_found"
+
+        if not router.is_active:
+            return "inactive"
+
+        statement = (
+            update(Router)
+            .where(
+                Router.id == router_id,
+                Router.is_active.is_(True),
+                or_(
+                    Router.poll_lease_until.is_(None),
+                    Router.poll_lease_until <= now,
+                ),
+            )
+            .values(next_poll_at=now)
+        )
+
+        result = await self._session.execute(statement)
+
+        if result.rowcount:
+            return "queued"
+
+        return "in_progress"
+
+    async def get_polling_overview(
+        self,
+        *,
+        now: datetime,
+    ) -> PollingOverview:
+        """Return scheduler information stored in the database."""
+
+        active_routers = await self._session.scalar(
+            select(func.count())
+            .select_from(Router)
+            .where(Router.is_active.is_(True))
+        )
+
+        due_routers = await self._session.scalar(
+            select(func.count())
+            .select_from(Router)
+            .where(
+                Router.is_active.is_(True),
+                Router.next_poll_at.is_not(None),
+                Router.next_poll_at <= now,
+                or_(
+                    Router.poll_lease_until.is_(None),
+                    Router.poll_lease_until <= now,
+                ),
+            )
+        )
+
+        leased_routers = await self._session.scalar(
+            select(func.count())
+            .select_from(Router)
+            .where(
+                Router.is_active.is_(True),
+                Router.poll_lease_until.is_not(None),
+                Router.poll_lease_until > now,
+            )
+        )
+
+        last_started_at = await self._session.scalar(
+            select(func.max(Router.last_poll_started_at))
+        )
+
+        last_finished_at = await self._session.scalar(
+            select(func.max(Router.last_poll_finished_at))
+        )
+
+        return PollingOverview(
+            active_routers=int(active_routers or 0),
+            due_routers=int(due_routers or 0),
+            leased_routers=int(leased_routers or 0),
+            last_started_at=last_started_at,
+            last_finished_at=last_finished_at,
+        )

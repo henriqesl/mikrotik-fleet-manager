@@ -708,11 +708,12 @@ function App() {
                 <Gauge className="size-4 shrink-0" />
 
                 <span>
-                  Polling worker:{" "}
+                  Polling:{" "}
                   <strong>
-                    {monitoringStatus?.worker_running
-                      ? "running"
-                      : "stopped"}
+                    {monitoringStatus?.polling_mode ?? "unknown"}
+                    {monitoringStatus?.cycle_in_progress
+                      ? " · collecting"
+                      : " · waiting"}
                   </strong>
                 </span>
 
