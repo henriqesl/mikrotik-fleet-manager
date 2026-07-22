@@ -8,6 +8,7 @@ from fastapi import (
     Response,
     status,
 )
+
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy.exc import SQLAlchemyError
@@ -19,13 +20,11 @@ from app.db.database import (
     check_database_connection,
     close_database_connection,
 )
+
 from app.routes.monitoring import router as monitoring_router
 from app.routes.routers import router as routers_router
-from app.workers.polling import polling_worker
-
 
 logger = logging.getLogger(__name__)
-
 
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
@@ -34,16 +33,9 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     configure_logging()
     get_credential_cipher()
 
-    if settings.polling_enabled:
-        polling_worker.start()
-
     try:
         yield
-
     finally:
-        if settings.polling_enabled:
-            await polling_worker.stop()
-
         await close_database_connection()
 
 
@@ -153,6 +145,7 @@ async def health_check(
             "environment": settings.environment,
             "database": "unavailable",
             "polling_enabled": settings.polling_enabled,
+            "polling_mode": "standalone",
         }
 
     return {
@@ -160,4 +153,5 @@ async def health_check(
         "environment": settings.environment,
         "database": "available",
         "polling_enabled": settings.polling_enabled,
+        "polling_mode": "standalone",
     }

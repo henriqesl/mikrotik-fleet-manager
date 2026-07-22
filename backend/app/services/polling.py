@@ -392,8 +392,6 @@ def build_polling_summary(
 async def poll_due_routers_once() -> PollingCycleSummary:
     """Poll one scheduled batch of due routers."""
 
-    await initialize_polling_schedule()
-
     worker_id = f"poller-{uuid4()}"
     targets = await reserve_due_polling_targets(
         worker_id=worker_id,

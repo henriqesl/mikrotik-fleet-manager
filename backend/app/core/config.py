@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     api_prefix: str = "/api"
 
     database_url: str = "sqlite+aiosqlite:///./argos.db"
+    database_echo: bool = False
 
     routeros_ca_file: str = "certs/routeros-ca.pem"
     routeros_socket_timeout_seconds: float = 5.0

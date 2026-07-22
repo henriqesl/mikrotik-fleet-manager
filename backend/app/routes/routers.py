@@ -1,5 +1,10 @@
 from typing import Annotated
 
+from datetime import datetime, timezone
+
+from app.core.config import settings
+from app.polling.policies import calculate_initial_poll_at
+
 from fastapi import (
     APIRouter,
     Depends,
@@ -14,6 +19,7 @@ from app.core.credential_cipher import (
     CredentialCipher,
     get_credential_cipher,
 )
+
 from app.db.database import get_database_session
 from app.repositories.router import RouterRepository
 from app.schemas.router import (
@@ -22,6 +28,7 @@ from app.schemas.router import (
     RouterResponse,
     RouterUpdate,
 )
+
 from app.services.routeros import (
     RouterOSConnectionError,
     RouterOSDataError,
@@ -183,6 +190,16 @@ async def create_router(
             checked_at=router_snapshot.checked_at,
         )
 
+        router_record.next_poll_at = calculate_initial_poll_at(
+            now=router_snapshot.checked_at,
+            router_id=router_record.id,
+            stagger_window_seconds=(
+                settings.poll_initial_stagger_seconds
+            ),
+        )
+
+        await session.flush()
+
         await session.commit()
         await session.refresh(router_record)
 
@@ -236,10 +253,26 @@ async def update_router(
         if updates["is_active"] is False:
             updates["status"] = "disabled"
             updates["last_error"] = None
+            updates["next_poll_at"] = None
+            updates["poll_lease_until"] = None
+            updates["poll_lease_owner"] = None
 
         elif router_record.is_active is False:
+            now = datetime.now(timezone.utc)
+
             updates["status"] = "unknown"
             updates["last_error"] = None
+            updates["consecutive_failures"] = 0
+            updates["poll_lease_until"] = None
+            updates["poll_lease_owner"] = None
+            updates["next_poll_at"] = calculate_initial_poll_at(
+                now=now,
+                router_id=router_record.id,
+                stagger_window_seconds=(
+                    settings.poll_initial_stagger_seconds
+                ),
+            )
+            
 
     router_record = await repository.update_router(
         router_record,
