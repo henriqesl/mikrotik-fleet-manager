@@ -4,6 +4,7 @@ import {
   ChevronRight,
   CircleAlert,
   Gauge,
+  Languages,
   LayoutDashboard,
   LoaderCircle,
   Menu,
@@ -19,30 +20,31 @@ import {
 } from "lucide-react";
 import { useMemo, useState } from "react";
 
+import { MobileNavigation } from "./components/MobileNavigation";
 import { RouterDetailDrawer } from "./components/RouterDetailDrawer";
 import { RouterRegistrationModal } from "./components/RouterRegistrationModal";
 import { useFleetDashboard } from "./hooks/useFleetDashboard";
+import { useI18n } from "./i18n/useI18n";
 
-import { MobileNavigation } from "./components/MobileNavigation";
 
 const navigationItems = [
   {
-    label: "Dashboard",
+    labelKey: "navigation.dashboard",
     icon: LayoutDashboard,
     active: true,
   },
   {
-    label: "Routers",
+    labelKey: "navigation.routers",
     icon: Router,
     active: false,
   },
   {
-    label: "Monitoring",
+    labelKey: "navigation.monitoring",
     icon: Activity,
     active: false,
   },
   {
-    label: "Settings",
+    labelKey: "navigation.settings",
     icon: Settings,
     active: false,
   },
@@ -51,30 +53,33 @@ const navigationItems = [
 
 const statusStyles = {
   online: {
-    label: "Online",
     badge:
       "border-emerald-400/20 bg-emerald-400/10 text-emerald-300",
     dot: "bg-emerald-400",
   },
   offline: {
-    label: "Offline",
     badge:
       "border-red-400/20 bg-red-400/10 text-red-300",
     dot: "bg-red-400",
   },
   error: {
-    label: "Error",
     badge:
       "border-amber-400/20 bg-amber-400/10 text-amber-300",
     dot: "bg-amber-400",
   },
   unknown: {
-    label: "Unknown",
     badge:
       "border-slate-400/20 bg-slate-400/10 text-slate-300",
     dot: "bg-slate-400",
   },
 };
+
+
+function localize(language, portuguese, english) {
+  return language === "en"
+    ? english
+    : portuguese;
+}
 
 
 function getRouterStatus(router) {
@@ -155,9 +160,13 @@ function formatUptime(seconds) {
 }
 
 
-function formatDateTime(value) {
+function formatDateTime(
+  value,
+  locale,
+  emptyLabel = "—",
+) {
   if (!value) {
-    return "Never";
+    return emptyLabel;
   }
 
   const date = new Date(value);
@@ -167,7 +176,7 @@ function formatDateTime(value) {
   }
 
   return new Intl.DateTimeFormat(
-    "pt-BR",
+    locale,
     {
       dateStyle: "short",
       timeStyle: "short",
@@ -200,6 +209,11 @@ function Brand() {
 
 
 function Sidebar() {
+  const {
+    language,
+    t,
+  } = useI18n();
+
   return (
     <aside className="hidden min-h-screen w-64 shrink-0 border-r border-white/5 bg-slate-950/70 px-4 py-5 backdrop-blur-xl lg:flex lg:flex-col">
       <div className="px-2">
@@ -212,7 +226,7 @@ function Sidebar() {
 
           return (
             <button
-              key={item.label}
+              key={item.labelKey}
               type="button"
               className={[
                 "flex w-full items-center gap-3 rounded-xl px-3 py-2.5",
@@ -223,7 +237,10 @@ function Sidebar() {
               ].join(" ")}
             >
               <Icon className="size-4" />
-              <span>{item.label}</span>
+
+              <span>
+                {t(item.labelKey)}
+              </span>
             </button>
           );
         })}
@@ -234,13 +251,20 @@ function Sidebar() {
           <ShieldCheck className="size-4" />
 
           <span className="text-xs font-semibold uppercase tracking-wider">
-            Secure network
+            {localize(
+              language,
+              "Rede segura",
+              "Secure network",
+            )}
           </span>
         </div>
 
         <p className="mt-2 text-xs leading-5 text-slate-500">
-          Router communication is restricted to the configured
-          WireGuard management network.
+          {localize(
+            language,
+            "A comunicação com os roteadores é restrita à rede de gerenciamento WireGuard configurada.",
+            "Router communication is restricted to the configured WireGuard management network.",
+          )}
         </p>
       </div>
     </aside>
@@ -251,12 +275,22 @@ function Sidebar() {
 function Header({
   onOpenNavigation,
 }) {
+  const {
+    language,
+    setLanguage,
+    t,
+  } = useI18n();
+
   return (
     <header className="flex min-h-20 items-center justify-between border-b border-white/5 px-4 sm:px-5 md:px-8">
       <div className="flex items-center gap-3">
         <button
           type="button"
-          aria-label="Open navigation"
+          aria-label={localize(
+            language,
+            "Abrir navegação",
+            "Open navigation",
+          )}
           onClick={onOpenNavigation}
           className="flex size-10 items-center justify-center rounded-xl border border-white/10 bg-white/[0.03] text-slate-400 transition hover:border-white/20 hover:text-white lg:hidden"
         >
@@ -265,19 +299,59 @@ function Header({
 
         <div>
           <p className="hidden text-xs font-medium uppercase tracking-[0.18em] text-emerald-400 sm:block">
-            Network operations
+            {t("dashboard.eyebrow")}
           </p>
 
           <h1 className="text-lg font-semibold text-white sm:mt-1 sm:text-xl">
-            Fleet Dashboard
+            {t("dashboard.title")}
           </h1>
         </div>
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2 sm:gap-3">
+        <div className="flex items-center gap-1 rounded-lg border border-white/10 bg-slate-950/60 p-1">
+          <Languages className="ml-1 hidden size-4 text-slate-500 sm:block" />
+
+          <button
+            type="button"
+            aria-pressed={language === "pt-BR"}
+            onClick={() => {
+              setLanguage("pt-BR");
+            }}
+            className={[
+              "rounded-md px-2 py-1 text-xs font-semibold transition",
+              language === "pt-BR"
+                ? "bg-emerald-400/10 text-emerald-300"
+                : "text-slate-500 hover:text-slate-300",
+            ].join(" ")}
+          >
+            PT-BR
+          </button>
+
+          <button
+            type="button"
+            aria-pressed={language === "en"}
+            onClick={() => {
+              setLanguage("en");
+            }}
+            className={[
+              "rounded-md px-2 py-1 text-xs font-semibold transition",
+              language === "en"
+                ? "bg-emerald-400/10 text-emerald-300"
+                : "text-slate-500 hover:text-slate-300",
+            ].join(" ")}
+          >
+            ENG
+          </button>
+        </div>
+
         <button
           type="button"
-          aria-label="Notifications"
+          aria-label={localize(
+            language,
+            "Notificações",
+            "Notifications",
+          )}
           className="flex size-10 items-center justify-center rounded-xl border border-white/10 bg-white/[0.03] text-slate-400 transition hover:border-white/20 hover:text-white"
         >
           <Bell className="size-4" />
@@ -290,11 +364,19 @@ function Header({
 
           <div className="hidden md:block">
             <p className="text-sm font-medium text-slate-200">
-              Administrator
+              {localize(
+                language,
+                "Administrador",
+                "Administrator",
+              )}
             </p>
 
             <p className="text-xs text-slate-500">
-              ARGOS Operator
+              {localize(
+                language,
+                "Operador ARGOS",
+                "ARGOS Operator",
+              )}
             </p>
           </div>
         </div>
@@ -337,9 +419,15 @@ function StatisticCard({
 
 
 function StatusBadge({ status }) {
-  const style =
+  const { t } = useI18n();
+
+  const normalizedStatus =
     statusStyles[status]
-    ?? statusStyles.unknown;
+      ? status
+      : "unknown";
+
+  const style =
+    statusStyles[normalizedStatus];
 
   return (
     <span
@@ -356,20 +444,26 @@ function StatusBadge({ status }) {
         ].join(" ")}
       />
 
-      {style.label}
+      {t(`status.${normalizedStatus}`)}
     </span>
   );
 }
 
 
 function LoadingTable() {
+  const { language } = useI18n();
+
   return (
     <div className="grid min-h-80 place-items-center p-8">
       <div className="text-center">
         <LoaderCircle className="mx-auto size-7 animate-spin text-emerald-400" />
 
         <p className="mt-3 text-sm text-slate-500">
-          Loading router fleet...
+          {localize(
+            language,
+            "Carregando frota de roteadores...",
+            "Loading router fleet...",
+          )}
         </p>
       </div>
     </div>
@@ -381,6 +475,8 @@ function EmptyRouterTable({
   hasSearch,
   onAddRouter,
 }) {
+  const { language } = useI18n();
+
   return (
     <div className="grid min-h-80 place-items-center p-8 text-center">
       <div className="max-w-sm">
@@ -394,14 +490,30 @@ function EmptyRouterTable({
 
         <h3 className="mt-5 font-semibold text-slate-200">
           {hasSearch
-            ? "No matching routers"
-            : "No routers registered"}
+            ? localize(
+              language,
+              "Nenhum roteador encontrado",
+              "No matching routers",
+            )
+            : localize(
+              language,
+              "Nenhum roteador cadastrado",
+              "No routers registered",
+            )}
         </h3>
 
         <p className="mt-2 text-sm leading-6 text-slate-500">
           {hasSearch
-            ? "Try searching by another name, IP address, model or identity."
-            : "Add your first MikroTik router to begin monitoring connectivity, CPU, memory and uptime."}
+            ? localize(
+              language,
+              "Tente pesquisar por outro nome, endereço IP, modelo ou identidade.",
+              "Try searching by another name, IP address, model or identity.",
+            )
+            : localize(
+              language,
+              "Adicione seu primeiro roteador MikroTik para começar a monitorar conectividade, CPU, memória e tempo de atividade.",
+              "Add your first MikroTik router to begin monitoring connectivity, CPU, memory and uptime.",
+            )}
         </p>
 
         {!hasSearch && (
@@ -410,7 +522,12 @@ function EmptyRouterTable({
             onClick={onAddRouter}
             className="mx-auto mt-5 flex items-center gap-1 text-sm font-medium text-emerald-400 transition hover:text-emerald-300"
           >
-            Register a router
+            {localize(
+              language,
+              "Cadastrar roteador",
+              "Register a router",
+            )}
+
             <ChevronRight className="size-4" />
           </button>
         )}
@@ -428,16 +545,22 @@ function RouterTable({
   onAddRouter,
   onSelectRouter,
 }) {
+  const {
+    language,
+    locale,
+    t,
+  } = useI18n();
+
   return (
     <section className="overflow-hidden rounded-2xl border border-white/[0.07] bg-slate-900/40">
       <div className="flex flex-col gap-4 border-b border-white/[0.06] p-5 md:flex-row md:items-center md:justify-between">
         <div>
           <h2 className="font-semibold text-white">
-            Managed Routers
+            {t("routers.title")}
           </h2>
 
           <p className="mt-1 text-sm text-slate-500">
-            Monitor and manage your RouterOS devices.
+            {t("routers.description")}
           </p>
         </div>
 
@@ -451,7 +574,7 @@ function RouterTable({
               onChange={(event) => {
                 setSearch(event.target.value);
               }}
-              placeholder="Search by name or IP"
+              placeholder={t("routers.search")}
               className="h-10 w-full rounded-xl border border-white/10 bg-slate-950/70 pl-10 pr-4 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-emerald-400/40 sm:w-64"
             />
           </label>
@@ -462,7 +585,8 @@ function RouterTable({
             className="flex h-10 items-center justify-center gap-2 rounded-xl bg-emerald-400 px-4 text-sm font-semibold text-slate-950 transition hover:bg-emerald-300"
           >
             <Plus className="size-4" />
-            Add Router
+
+            {t("routers.add")}
           </button>
         </div>
       </div>
@@ -480,31 +604,31 @@ function RouterTable({
             <thead className="border-b border-white/[0.06] bg-slate-950/30">
               <tr className="text-xs uppercase tracking-wider text-slate-500">
                 <th className="px-5 py-3 font-medium">
-                  Router
+                  {t("routers.name")}
                 </th>
 
                 <th className="px-5 py-3 font-medium">
-                  Status
+                  {t("routers.status")}
                 </th>
 
                 <th className="px-5 py-3 font-medium">
-                  Model
+                  {t("routers.model")}
                 </th>
 
                 <th className="px-5 py-3 font-medium">
-                  CPU
+                  {t("routers.cpu")}
                 </th>
 
                 <th className="px-5 py-3 font-medium">
-                  Memory
+                  {t("routers.memory")}
                 </th>
 
                 <th className="px-5 py-3 font-medium">
-                  Uptime
+                  {t("routers.uptime")}
                 </th>
 
                 <th className="px-5 py-3 font-medium">
-                  Last check
+                  {t("routers.lastCheck")}
                 </th>
               </tr>
             </thead>
@@ -525,7 +649,11 @@ function RouterTable({
                     key={routerItem.id}
                     role="button"
                     tabIndex={0}
-                    aria-label={`Open details for ${routerItem.name}`}
+                    aria-label={localize(
+                      language,
+                      `Abrir detalhes de ${routerItem.name}`,
+                      `Open details for ${routerItem.name}`,
+                    )}
                     onClick={() => {
                       onSelectRouter(routerItem.id);
                     }}
@@ -573,7 +701,11 @@ function RouterTable({
                       <p className="mt-0.5 text-xs text-slate-600">
                         {routerItem.routeros_version
                           ?? routerItem.identity
-                          ?? "No device data"}
+                          ?? localize(
+                            language,
+                            "Sem dados do dispositivo",
+                            "No device data",
+                          )}
                       </p>
                     </td>
 
@@ -594,6 +726,12 @@ function RouterTable({
                     <td className="px-5 py-4 text-sm text-slate-400">
                       {formatDateTime(
                         routerItem.last_checked_at,
+                        locale,
+                        localize(
+                          language,
+                          "Nunca",
+                          "Never",
+                        ),
                       )}
                     </td>
                   </tr>
@@ -609,6 +747,12 @@ function RouterTable({
 
 
 function App() {
+  const {
+    language,
+    locale,
+    t,
+  } = useI18n();
+
   const [search, setSearch] = useState("");
 
   const [
@@ -649,7 +793,6 @@ function App() {
       const searchableValues = [
         routerItem.name,
         routerItem.management_ip,
-        routerItem.public_ip,
         routerItem.model,
         routerItem.identity,
       ];
@@ -665,30 +808,47 @@ function App() {
 
   const statisticCards = [
     {
-      label: "Total Routers",
+      label: t("statistics.total"),
       value: statistics.total,
-      description: "Registered active devices",
+      description:
+        t("statistics.totalDescription"),
       icon: Server,
     },
     {
-      label: "Online",
+      label: t("statistics.online"),
       value: statistics.online,
-      description: "Reachable devices",
+      description:
+        t("statistics.onlineDescription"),
       icon: Wifi,
     },
     {
-      label: "Offline",
+      label: t("statistics.offline"),
       value: statistics.offline,
-      description: "Unavailable devices",
+      description:
+        t("statistics.offlineDescription"),
       icon: WifiOff,
     },
     {
-      label: "CPU Alerts",
+      label: t("statistics.cpuAlerts"),
       value: statistics.cpuAlerts,
-      description: "Usage at or above 80%",
+      description:
+        t("statistics.cpuAlertsDescription"),
       icon: CircleAlert,
     },
   ];
+
+  const pollingMode =
+    monitoringStatus?.polling_mode === "standalone"
+      ? localize(
+        language,
+        "independente",
+        "standalone",
+      )
+      : localize(
+        language,
+        "desconhecido",
+        "unknown",
+      );
 
   return (
     <div className="min-h-screen lg:flex">
@@ -709,26 +869,30 @@ function App() {
 
                 <span>
                   Polling:{" "}
+
                   <strong>
-                    {monitoringStatus?.polling_mode ?? "unknown"}
+                    {pollingMode}
+
+                    {" · "}
+
                     {monitoringStatus?.cycle_in_progress
-                      ? " · collecting"
-                      : " · waiting"}
+                      ? t("dashboard.collecting")
+                      : t("dashboard.idle")}
                   </strong>
                 </span>
-
-                {monitoringStatus?.cycle_in_progress && (
-                  <span className="text-emerald-400">
-                    · cycle in progress
-                  </span>
-                )}
               </div>
 
               <div className="flex items-center gap-3">
                 <span className="text-xs text-slate-500">
                   {lastUpdatedAt
-                    ? `Updated ${lastUpdatedAt.toLocaleTimeString("pt-BR")}`
-                    : "Waiting for data"}
+                    ? `${localize(
+                      language,
+                      "Atualizado às",
+                      "Updated at",
+                    )} ${lastUpdatedAt.toLocaleTimeString(
+                      locale,
+                    )}`
+                    : t("dashboard.waiting")}
                 </span>
 
                 <button
@@ -748,7 +912,7 @@ function App() {
                     ].join(" ")}
                   />
 
-                  Refresh
+                  {t("dashboard.refresh")}
                 </button>
               </div>
             </div>
@@ -759,7 +923,11 @@ function App() {
 
                 <div>
                   <p className="text-sm font-medium text-red-200">
-                    Unable to update all dashboard data
+                    {localize(
+                      language,
+                      "Não foi possível atualizar todos os dados do painel",
+                      "Unable to update all dashboard data",
+                    )}
                   </p>
 
                   <p className="mt-1 text-xs leading-5 text-red-300/70">

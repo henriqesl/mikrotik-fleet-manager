@@ -1,0 +1,106 @@
+export const messages = {
+  "pt-BR": {
+    "navigation.dashboard": "Painel",
+    "navigation.routers": "Roteadores",
+    "navigation.monitoring": "Monitoramento",
+    "navigation.settings": "Configurações",
+
+    "dashboard.eyebrow": "Operações de rede",
+    "dashboard.title": "Painel da frota",
+    "dashboard.refresh": "Atualizar",
+    "dashboard.waiting": "Aguardando dados",
+    "dashboard.collecting": "coletando",
+    "dashboard.idle": "aguardando",
+
+    "statistics.total": "Total de roteadores",
+    "statistics.totalDescription": "Dispositivos ativos cadastrados",
+    "statistics.online": "Online",
+    "statistics.onlineDescription": "Dispositivos acessíveis",
+    "statistics.offline": "Offline",
+    "statistics.offlineDescription": "Dispositivos indisponíveis",
+    "statistics.cpuAlerts": "Alertas de CPU",
+    "statistics.cpuAlertsDescription": "Uso igual ou superior a 80%",
+
+    "routers.title": "Roteadores gerenciados",
+    "routers.description":
+      "Monitore e gerencie seus dispositivos RouterOS.",
+    "routers.search": "Pesquisar por nome ou IP",
+    "routers.add": "Adicionar roteador",
+    "routers.name": "Roteador",
+    "routers.status": "Status",
+    "routers.model": "Modelo",
+    "routers.cpu": "CPU",
+    "routers.memory": "Memória",
+    "routers.uptime": "Tempo ativo",
+    "routers.lastCheck": "Última verificação",
+
+    "router.managementIp": "IP de gerenciamento",
+    "router.apiPort": "Porta da API",
+    "router.username": "Usuário",
+    "router.password": "Senha",
+    "router.save": "Salvar alterações",
+    "router.cancel": "Cancelar",
+    "router.pollNow": "Coletar agora",
+    "router.refresh": "Atualizar",
+    "router.deactivate": "Desativar roteador",
+
+    "status.online": "Online",
+    "status.offline": "Offline",
+    "status.error": "Erro",
+    "status.unknown": "Desconhecido",
+  },
+
+  en: {
+    "navigation.dashboard": "Dashboard",
+    "navigation.routers": "Routers",
+    "navigation.monitoring": "Monitoring",
+    "navigation.settings": "Settings",
+
+    "dashboard.eyebrow": "Network operations",
+    "dashboard.title": "Fleet Dashboard",
+    "dashboard.refresh": "Refresh",
+    "dashboard.waiting": "Waiting for data",
+    "dashboard.collecting": "collecting",
+    "dashboard.idle": "waiting",
+
+    "statistics.total": "Total Routers",
+    "statistics.totalDescription":
+      "Registered active devices",
+    "statistics.online": "Online",
+    "statistics.onlineDescription": "Reachable devices",
+    "statistics.offline": "Offline",
+    "statistics.offlineDescription":
+      "Unavailable devices",
+    "statistics.cpuAlerts": "CPU Alerts",
+    "statistics.cpuAlertsDescription":
+      "Usage at or above 80%",
+
+    "routers.title": "Managed Routers",
+    "routers.description":
+      "Monitor and manage your RouterOS devices.",
+    "routers.search": "Search by name or IP",
+    "routers.add": "Add Router",
+    "routers.name": "Router",
+    "routers.status": "Status",
+    "routers.model": "Model",
+    "routers.cpu": "CPU",
+    "routers.memory": "Memory",
+    "routers.uptime": "Uptime",
+    "routers.lastCheck": "Last check",
+
+    "router.managementIp": "Management IP",
+    "router.apiPort": "API port",
+    "router.username": "Username",
+    "router.password": "Password",
+    "router.save": "Save changes",
+    "router.cancel": "Cancel",
+    "router.pollNow": "Poll now",
+    "router.refresh": "Refresh",
+    "router.deactivate": "Deactivate router",
+
+    "status.online": "Online",
+    "status.offline": "Offline",
+    "status.error": "Error",
+    "status.unknown": "Unknown",
+  },
+};

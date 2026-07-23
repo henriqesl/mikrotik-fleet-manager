@@ -7,29 +7,50 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 
+import { useI18n } from "../i18n/useI18n";
 import { routerService } from "../services/routerService";
 
 
 const INITIAL_FORM = {
   name: "",
   managementIp: "",
-  publicIp: "",
   apiPort: "8729",
   username: "",
   password: "",
 };
 
 
-function validateForm(formData) {
+function localize(
+  language,
+  portuguese,
+  english,
+) {
+  return language === "en"
+    ? english
+    : portuguese;
+}
+
+
+function validateForm(
+  formData,
+  language,
+) {
   const errors = {};
 
   if (!formData.name.trim()) {
-    errors.name = "Router name is required.";
+    errors.name = localize(
+      language,
+      "O nome do roteador é obrigatório.",
+      "Router name is required.",
+    );
   }
 
   if (!formData.managementIp.trim()) {
-    errors.managementIp =
-      "Management IP is required.";
+    errors.managementIp = localize(
+      language,
+      "O IP de gerenciamento é obrigatório.",
+      "Management IP is required.",
+    );
   }
 
   const apiPort = Number(formData.apiPort);
@@ -39,16 +60,27 @@ function validateForm(formData) {
     || apiPort < 1
     || apiPort > 65_535
   ) {
-    errors.apiPort =
-      "Enter a valid TCP port.";
+    errors.apiPort = localize(
+      language,
+      "Informe uma porta TCP válida.",
+      "Enter a valid TCP port.",
+    );
   }
 
   if (!formData.username.trim()) {
-    errors.username = "Username is required.";
+    errors.username = localize(
+      language,
+      "O usuário é obrigatório.",
+      "Username is required.",
+    );
   }
 
   if (!formData.password) {
-    errors.password = "Password is required.";
+    errors.password = localize(
+      language,
+      "A senha é obrigatória.",
+      "Password is required.",
+    );
   }
 
   return errors;
@@ -118,6 +150,8 @@ export function RouterRegistrationModal({
   onClose,
   onCreated,
 }) {
+  const { language } = useI18n();
+
   const [formData, setFormData] =
     useState(INITIAL_FORM);
 
@@ -179,7 +213,10 @@ export function RouterRegistrationModal({
     event.preventDefault();
 
     const validationErrors =
-      validateForm(formData);
+      validateForm(
+        formData,
+        language,
+      );
 
     if (
       Object.keys(validationErrors).length > 0
@@ -196,8 +233,6 @@ export function RouterRegistrationModal({
         name: formData.name.trim(),
         management_ip:
           formData.managementIp.trim(),
-        public_ip:
-          formData.publicIp.trim() || null,
         api_port: Number(formData.apiPort),
         username: formData.username.trim(),
         password: formData.password,
@@ -209,7 +244,11 @@ export function RouterRegistrationModal({
     } catch (error) {
       setServerError(
         error?.message
-          ?? "The router could not be registered.",
+        ?? localize(
+          language,
+          "Não foi possível cadastrar o roteador.",
+          "The router could not be registered.",
+        ),
       );
     } finally {
       setIsSubmitting(false);
@@ -239,19 +278,30 @@ export function RouterRegistrationModal({
                 id="router-registration-title"
                 className="font-semibold text-white"
               >
-                Register MikroTik router
+                {localize(
+                  language,
+                  "Cadastrar roteador MikroTik",
+                  "Register MikroTik router",
+                )}
               </h2>
 
               <p className="mt-1 text-sm leading-5 text-slate-500">
-                ARGOS will validate the RouterOS API-SSL
-                connection before saving the device.
+                {localize(
+                  language,
+                  "O ARGOS validará a conexão com a API-SSL do RouterOS antes de salvar o dispositivo.",
+                  "ARGOS will validate the RouterOS API-SSL connection before saving the device.",
+                )}
               </p>
             </div>
           </div>
 
           <button
             type="button"
-            aria-label="Close router registration"
+            aria-label={localize(
+              language,
+              "Fechar cadastro do roteador",
+              "Close router registration",
+            )}
             disabled={isSubmitting}
             onClick={handleClose}
             className="flex size-9 shrink-0 items-center justify-center rounded-xl text-slate-500 transition hover:bg-white/5 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
@@ -265,7 +315,11 @@ export function RouterRegistrationModal({
             {serverError && (
               <div className="rounded-xl border border-red-400/20 bg-red-400/10 px-4 py-3">
                 <p className="text-sm font-medium text-red-200">
-                  Router registration failed
+                  {localize(
+                    language,
+                    "Falha ao cadastrar o roteador",
+                    "Router registration failed",
+                  )}
                 </p>
 
                 <p className="mt-1 text-xs leading-5 text-red-300/80">
@@ -276,7 +330,11 @@ export function RouterRegistrationModal({
 
             <div className="grid gap-5 sm:grid-cols-2">
               <FormField
-                label="Router name"
+                label={localize(
+                  language,
+                  "Nome do roteador",
+                  "Router name",
+                )}
                 name="name"
                 type="text"
                 required
@@ -288,30 +346,31 @@ export function RouterRegistrationModal({
               />
 
               <FormField
-                label="Management IP"
+                label={localize(
+                  language,
+                  "IP de gerenciamento",
+                  "Management IP",
+                )}
                 name="managementIp"
                 type="text"
                 required
                 value={formData.managementIp}
                 error={fieldErrors.managementIp}
                 onChange={updateField}
-                placeholder="10.200.0.21"
-                helperText="Private IP reachable through the WireGuard network."
+                placeholder="10.3.3.240"
+                helperText={localize(
+                  language,
+                  "IP privado acessível pela rede WireGuard.",
+                  "Private IP reachable through the WireGuard network.",
+                )}
               />
 
               <FormField
-                label="Public IP"
-                name="publicIp"
-                type="text"
-                value={formData.publicIp}
-                error={fieldErrors.publicIp}
-                onChange={updateField}
-                placeholder="Optional"
-                helperText="Inventory information only. It is not used for management."
-              />
-
-              <FormField
-                label="RouterOS API port"
+                label={localize(
+                  language,
+                  "Porta da API RouterOS",
+                  "RouterOS API port",
+                )}
                 name="apiPort"
                 type="number"
                 required
@@ -324,7 +383,11 @@ export function RouterRegistrationModal({
               />
 
               <FormField
-                label="Username"
+                label={localize(
+                  language,
+                  "Usuário",
+                  "Username",
+                )}
                 name="username"
                 type="text"
                 required
@@ -336,7 +399,11 @@ export function RouterRegistrationModal({
               />
 
               <FormField
-                label="Password"
+                label={localize(
+                  language,
+                  "Senha",
+                  "Password",
+                )}
                 name="password"
                 required
                 value={formData.password}
@@ -355,7 +422,11 @@ export function RouterRegistrationModal({
                     autoComplete="new-password"
                     value={formData.password}
                     onChange={updateField}
-                    placeholder="RouterOS password"
+                    placeholder={localize(
+                      language,
+                      "Senha do RouterOS",
+                      "RouterOS password",
+                    )}
                     className={[
                       "h-11 w-full rounded-xl border bg-slate-950/70 px-3 pr-11",
                       "text-sm text-white outline-none transition",
@@ -370,8 +441,16 @@ export function RouterRegistrationModal({
                     type="button"
                     aria-label={
                       showPassword
-                        ? "Hide password"
-                        : "Show password"
+                        ? localize(
+                          language,
+                          "Ocultar senha",
+                          "Hide password",
+                        )
+                        : localize(
+                          language,
+                          "Mostrar senha",
+                          "Show password",
+                        )
                     }
                     onClick={() => {
                       setShowPassword(
@@ -392,9 +471,11 @@ export function RouterRegistrationModal({
 
             <div className="rounded-xl border border-amber-400/10 bg-amber-400/5 px-4 py-3">
               <p className="text-xs leading-5 text-amber-200/70">
-                The password is sent only to the ARGOS
-                backend and encrypted before being stored.
-                It is never returned through API responses.
+                {localize(
+                  language,
+                  "A senha é enviada apenas ao backend do ARGOS e criptografada antes de ser armazenada. Ela nunca é retornada pelas respostas da API.",
+                  "The password is sent only to the ARGOS backend and encrypted before being stored. It is never returned through API responses.",
+                )}
               </p>
             </div>
           </div>
@@ -406,7 +487,11 @@ export function RouterRegistrationModal({
               onClick={handleClose}
               className="h-10 rounded-xl border border-white/10 px-4 text-sm font-medium text-slate-300 transition hover:border-white/20 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
             >
-              Cancel
+              {localize(
+                language,
+                "Cancelar",
+                "Cancel",
+              )}
             </button>
 
             <button
@@ -417,12 +502,22 @@ export function RouterRegistrationModal({
               {isSubmitting ? (
                 <>
                   <LoaderCircle className="size-4 animate-spin" />
-                  Validating connection...
+
+                  {localize(
+                    language,
+                    "Validando conexão...",
+                    "Validating connection...",
+                  )}
                 </>
               ) : (
                 <>
                   <Router className="size-4" />
-                  Register router
+
+                  {localize(
+                    language,
+                    "Cadastrar roteador",
+                    "Register router",
+                  )}
                 </>
               )}
             </button>

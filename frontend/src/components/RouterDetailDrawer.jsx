@@ -3,7 +3,6 @@ import {
   Box,
   CalendarClock,
   Cpu,
-  Globe2,
   HardDrive,
   LoaderCircle,
   Network,
@@ -22,36 +21,44 @@ import {
   useState,
 } from "react";
 
+import { useI18n } from "../i18n/useI18n";
 import { monitoringService } from "../services/monitoringService";
 import { routerService } from "../services/routerService";
 
 
 const statusStyles = {
   online: {
-    label: "Online",
     badge:
       "border-emerald-400/20 bg-emerald-400/10 text-emerald-300",
     dot: "bg-emerald-400",
   },
   offline: {
-    label: "Offline",
     badge:
       "border-red-400/20 bg-red-400/10 text-red-300",
     dot: "bg-red-400",
   },
   error: {
-    label: "Error",
     badge:
       "border-amber-400/20 bg-amber-400/10 text-amber-300",
     dot: "bg-amber-400",
   },
   unknown: {
-    label: "Unknown",
     badge:
       "border-slate-400/20 bg-slate-400/10 text-slate-300",
     dot: "bg-slate-400",
   },
 };
+
+
+function localize(
+  language,
+  portuguese,
+  english,
+) {
+  return language === "en"
+    ? english
+    : portuguese;
+}
 
 
 function getRouterStatus(router) {
@@ -65,7 +72,9 @@ function getRouterStatus(router) {
 
 function getPercentage(router, ...fields) {
   for (const field of fields) {
-    const numericValue = Number(router?.[field]);
+    const numericValue = Number(
+      router?.[field],
+    );
 
     if (Number.isFinite(numericValue)) {
       return numericValue;
@@ -117,9 +126,13 @@ function formatUptime(seconds) {
 }
 
 
-function formatDateTime(value) {
+function formatDateTime(
+  value,
+  locale,
+  emptyLabel,
+) {
   if (!value) {
-    return "Never";
+    return emptyLabel;
   }
 
   const date = new Date(value);
@@ -129,7 +142,7 @@ function formatDateTime(value) {
   }
 
   return new Intl.DateTimeFormat(
-    "pt-BR",
+    locale,
     {
       dateStyle: "short",
       timeStyle: "medium",
@@ -139,9 +152,15 @@ function formatDateTime(value) {
 
 
 function StatusBadge({ status }) {
-  const style =
+  const { t } = useI18n();
+
+  const normalizedStatus =
     statusStyles[status]
-    ?? statusStyles.unknown;
+      ? status
+      : "unknown";
+
+  const style =
+    statusStyles[normalizedStatus];
 
   return (
     <span
@@ -158,7 +177,7 @@ function StatusBadge({ status }) {
         ].join(" ")}
       />
 
-      {style.label}
+      {t(`status.${normalizedStatus}`)}
     </span>
   );
 }
@@ -218,6 +237,11 @@ export function RouterDetailDrawer({
   onClose,
   onChanged,
 }) {
+  const {
+    language,
+    locale,
+  } = useI18n();
+
   const [routerData, setRouterData] =
     useState(null);
 
@@ -233,7 +257,6 @@ export function RouterDetailDrawer({
   const [editForm, setEditForm] =
     useState({
       name: "",
-      publicIp: "",
     });
 
   const [fieldError, setFieldError] =
@@ -277,17 +300,20 @@ export function RouterDetailDrawer({
 
       setEditForm({
         name: router.name ?? "",
-        publicIp: router.public_ip ?? "",
       });
     } catch (requestError) {
       setError(
         requestError?.message
-          ?? "Unable to load router details.",
+        ?? localize(
+          language,
+          "Não foi possível carregar os detalhes do roteador.",
+          "Unable to load router details.",
+        ),
       );
     } finally {
       setIsLoading(false);
     }
-  }, [routerId]);
+  }, [language, routerId]);
 
 
   useEffect(() => {
@@ -345,7 +371,6 @@ export function RouterDetailDrawer({
   function startEditing() {
     setEditForm({
       name: routerData?.name ?? "",
-      publicIp: routerData?.public_ip ?? "",
     });
 
     setFieldError(null);
@@ -357,7 +382,6 @@ export function RouterDetailDrawer({
   function cancelEditing() {
     setEditForm({
       name: routerData?.name ?? "",
-      publicIp: routerData?.public_ip ?? "",
     });
 
     setFieldError(null);
@@ -374,7 +398,11 @@ export function RouterDetailDrawer({
 
     if (!normalizedName) {
       setFieldError(
-        "Router name is required.",
+        localize(
+          language,
+          "O nome do roteador é obrigatório.",
+          "Router name is required.",
+        ),
       );
 
       return;
@@ -390,9 +418,6 @@ export function RouterDetailDrawer({
           routerId,
           {
             name: normalizedName,
-            public_ip:
-              editForm.publicIp.trim()
-              || null,
           },
         );
 
@@ -400,8 +425,6 @@ export function RouterDetailDrawer({
 
       setEditForm({
         name: updatedRouter.name ?? "",
-        publicIp:
-          updatedRouter.public_ip ?? "",
       });
 
       setIsEditing(false);
@@ -410,7 +433,11 @@ export function RouterDetailDrawer({
     } catch (requestError) {
       setActionError(
         requestError?.message
-          ?? "Unable to update the router.",
+        ?? localize(
+          language,
+          "Não foi possível atualizar o roteador.",
+          "Unable to update the router.",
+        ),
       );
     } finally {
       setIsSaving(false);
@@ -423,14 +450,26 @@ export function RouterDetailDrawer({
     setActionError(null);
 
     try {
-      await monitoringService.triggerPolling();
-      await loadRouter();
+      if (
+        typeof monitoringService
+          .triggerRouterPolling === "function"
+      ) {
+        await monitoringService
+          .triggerRouterPolling(routerId);
+      } else {
+        await monitoringService
+          .triggerPolling();
+      }
 
       onChanged?.();
     } catch (requestError) {
       setActionError(
         requestError?.message
-          ?? "Unable to execute router polling.",
+        ?? localize(
+          language,
+          "Não foi possível solicitar a coleta do roteador.",
+          "Unable to request router polling.",
+        ),
       );
     } finally {
       setIsPolling(false);
@@ -452,7 +491,11 @@ export function RouterDetailDrawer({
     } catch (requestError) {
       setActionError(
         requestError?.message
-          ?? "Unable to deactivate the router.",
+        ?? localize(
+          language,
+          "Não foi possível desativar o roteador.",
+          "Unable to deactivate the router.",
+        ),
       );
 
       setShowDeactivateConfirmation(false);
@@ -485,6 +528,12 @@ export function RouterDetailDrawer({
     ?? routerData?.last_online_at
     ?? null;
 
+  const neverLabel = localize(
+    language,
+    "Nunca",
+    "Never",
+  );
+
 
   return (
     <div
@@ -511,7 +560,11 @@ export function RouterDetailDrawer({
                   className="truncate font-semibold text-white"
                 >
                   {routerData?.name
-                    ?? "Router details"}
+                    ?? localize(
+                      language,
+                      "Detalhes do roteador",
+                      "Router details",
+                    )}
                 </h2>
 
                 {routerData && (
@@ -521,7 +574,11 @@ export function RouterDetailDrawer({
 
               <p className="mt-1 text-sm text-slate-500">
                 {routerData?.management_ip
-                  ?? "Loading device information..."}
+                  ?? localize(
+                    language,
+                    "Carregando informações do dispositivo...",
+                    "Loading device information...",
+                  )}
               </p>
             </div>
           </div>
@@ -530,7 +587,11 @@ export function RouterDetailDrawer({
             {routerData && !isEditing && (
               <button
                 type="button"
-                aria-label="Edit router"
+                aria-label={localize(
+                  language,
+                  "Editar roteador",
+                  "Edit router",
+                )}
                 onClick={startEditing}
                 className="flex size-9 shrink-0 items-center justify-center rounded-xl text-slate-500 transition hover:bg-white/5 hover:text-white"
               >
@@ -540,7 +601,11 @@ export function RouterDetailDrawer({
 
             <button
               type="button"
-              aria-label="Close router details"
+              aria-label={localize(
+                language,
+                "Fechar detalhes do roteador",
+                "Close router details",
+              )}
               onClick={onClose}
               className="flex size-9 shrink-0 items-center justify-center rounded-xl text-slate-500 transition hover:bg-white/5 hover:text-white"
             >
@@ -556,7 +621,11 @@ export function RouterDetailDrawer({
                 <LoaderCircle className="mx-auto size-8 animate-spin text-emerald-400" />
 
                 <p className="mt-3 text-sm text-slate-500">
-                  Loading router details...
+                  {localize(
+                    language,
+                    "Carregando detalhes do roteador...",
+                    "Loading router details...",
+                  )}
                 </p>
               </div>
             </div>
@@ -568,7 +637,11 @@ export function RouterDetailDrawer({
                 </div>
 
                 <h3 className="mt-5 font-semibold text-white">
-                  Unable to load router
+                  {localize(
+                    language,
+                    "Não foi possível carregar o roteador",
+                    "Unable to load router",
+                  )}
                 </h3>
 
                 <p className="mt-2 text-sm leading-6 text-slate-500">
@@ -581,7 +654,12 @@ export function RouterDetailDrawer({
                   className="mx-auto mt-5 flex h-10 items-center justify-center gap-2 rounded-xl bg-emerald-400 px-4 text-sm font-semibold text-slate-950 transition hover:bg-emerald-300"
                 >
                   <RefreshCw className="size-4" />
-                  Try again
+
+                  {localize(
+                    language,
+                    "Tentar novamente",
+                    "Try again",
+                  )}
                 </button>
               </div>
             </div>
@@ -594,7 +672,11 @@ export function RouterDetailDrawer({
 
                     <div>
                       <p className="text-sm font-medium text-red-200">
-                        Action failed
+                        {localize(
+                          language,
+                          "Falha na ação",
+                          "Action failed",
+                        )}
                       </p>
 
                       <p className="mt-1 text-xs leading-5 text-red-300/80">
@@ -612,7 +694,11 @@ export function RouterDetailDrawer({
 
                     <div>
                       <p className="text-sm font-medium text-amber-200">
-                        Current monitoring error
+                        {localize(
+                          language,
+                          "Erro atual de monitoramento",
+                          "Current monitoring error",
+                        )}
                       </p>
 
                       <p className="mt-1 text-xs leading-5 text-amber-300/75">
@@ -626,7 +712,11 @@ export function RouterDetailDrawer({
               {isEditing && (
                 <section>
                   <h3 className="mb-3 text-sm font-semibold text-white">
-                    Edit router
+                    {localize(
+                      language,
+                      "Editar roteador",
+                      "Edit router",
+                    )}
                   </h3>
 
                   <form
@@ -638,7 +728,11 @@ export function RouterDetailDrawer({
                         htmlFor="edit-router-name"
                         className="mb-2 block text-sm font-medium text-slate-300"
                       >
-                        Router name
+                        {localize(
+                          language,
+                          "Nome do roteador",
+                          "Router name",
+                        )}
                       </label>
 
                       <input
@@ -646,10 +740,9 @@ export function RouterDetailDrawer({
                         type="text"
                         value={editForm.name}
                         onChange={(event) => {
-                          setEditForm((current) => ({
-                            ...current,
+                          setEditForm({
                             name: event.target.value,
-                          }));
+                          });
 
                           setFieldError(null);
                         }}
@@ -669,30 +762,6 @@ export function RouterDetailDrawer({
                       )}
                     </div>
 
-                    <div>
-                      <label
-                        htmlFor="edit-public-ip"
-                        className="mb-2 block text-sm font-medium text-slate-300"
-                      >
-                        Public IP
-                      </label>
-
-                      <input
-                        id="edit-public-ip"
-                        type="text"
-                        value={editForm.publicIp}
-                        onChange={(event) => {
-                          setEditForm((current) => ({
-                            ...current,
-                            publicIp:
-                              event.target.value,
-                          }));
-                        }}
-                        placeholder="Optional"
-                        className="h-11 w-full rounded-xl border border-white/10 bg-slate-950/70 px-3 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-emerald-400/50"
-                      />
-                    </div>
-
                     <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
                       <button
                         type="button"
@@ -700,7 +769,11 @@ export function RouterDetailDrawer({
                         onClick={cancelEditing}
                         className="h-10 rounded-xl border border-white/10 px-4 text-sm font-medium text-slate-300 transition hover:border-white/20 hover:text-white disabled:opacity-50"
                       >
-                        Cancel
+                        {localize(
+                          language,
+                          "Cancelar",
+                          "Cancel",
+                        )}
                       </button>
 
                       <button
@@ -711,12 +784,22 @@ export function RouterDetailDrawer({
                         {isSaving ? (
                           <>
                             <LoaderCircle className="size-4 animate-spin" />
-                            Saving...
+
+                            {localize(
+                              language,
+                              "Salvando...",
+                              "Saving...",
+                            )}
                           </>
                         ) : (
                           <>
                             <Save className="size-4" />
-                            Save changes
+
+                            {localize(
+                              language,
+                              "Salvar alterações",
+                              "Save changes",
+                            )}
                           </>
                         )}
                       </button>
@@ -728,7 +811,11 @@ export function RouterDetailDrawer({
               <section>
                 <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <h3 className="text-sm font-semibold text-white">
-                    Operational metrics
+                    {localize(
+                      language,
+                      "Métricas operacionais",
+                      "Operational metrics",
+                    )}
                   </h3>
 
                   <div className="flex items-center gap-2">
@@ -745,8 +832,16 @@ export function RouterDetailDrawer({
                       )}
 
                       {isPolling
-                        ? "Polling..."
-                        : "Poll now"}
+                        ? localize(
+                          language,
+                          "Solicitando...",
+                          "Requesting...",
+                        )
+                        : localize(
+                          language,
+                          "Coletar agora",
+                          "Poll now",
+                        )}
                     </button>
 
                     <button
@@ -764,7 +859,11 @@ export function RouterDetailDrawer({
                         ].join(" ")}
                       />
 
-                      Refresh
+                      {localize(
+                        language,
+                        "Atualizar",
+                        "Refresh",
+                      )}
                     </button>
                   </div>
                 </div>
@@ -780,7 +879,11 @@ export function RouterDetailDrawer({
 
                   <MetricCard
                     icon={HardDrive}
-                    label="Memory"
+                    label={localize(
+                      language,
+                      "Memória",
+                      "Memory",
+                    )}
                     value={formatPercentage(
                       memoryUsage,
                     )}
@@ -788,7 +891,11 @@ export function RouterDetailDrawer({
 
                   <MetricCard
                     icon={TimerReset}
-                    label="Uptime"
+                    label={localize(
+                      language,
+                      "Tempo ativo",
+                      "Uptime",
+                    )}
                     value={formatUptime(
                       routerData.uptime_seconds,
                     )}
@@ -798,19 +905,31 @@ export function RouterDetailDrawer({
 
               <section>
                 <h3 className="mb-3 text-sm font-semibold text-white">
-                  Device information
+                  {localize(
+                    language,
+                    "Informações do dispositivo",
+                    "Device information",
+                  )}
                 </h3>
 
                 <div className="grid gap-3 sm:grid-cols-2">
                   <DetailField
                     icon={Box}
-                    label="Model"
+                    label={localize(
+                      language,
+                      "Modelo",
+                      "Model",
+                    )}
                     value={routerData.model}
                   />
 
                   <DetailField
                     icon={ShieldCheck}
-                    label="Identity"
+                    label={localize(
+                      language,
+                      "Identidade",
+                      "Identity",
+                    )}
                     value={routerData.identity}
                   />
 
@@ -824,7 +943,11 @@ export function RouterDetailDrawer({
 
                   <DetailField
                     icon={Network}
-                    label="API port"
+                    label={localize(
+                      language,
+                      "Porta da API",
+                      "API port",
+                    )}
                     value={routerData.api_port}
                   />
                 </div>
@@ -832,48 +955,59 @@ export function RouterDetailDrawer({
 
               <section>
                 <h3 className="mb-3 text-sm font-semibold text-white">
-                  Network addresses
+                  {localize(
+                    language,
+                    "Rede de gerenciamento",
+                    "Management network",
+                  )}
                 </h3>
 
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <DetailField
-                    icon={Network}
-                    label="Management IP"
-                    value={
-                      routerData.management_ip
-                    }
-                  />
-
-                  <DetailField
-                    icon={Globe2}
-                    label="Public IP"
-                    value={
-                      routerData.public_ip
-                        ?? "Not configured"
-                    }
-                  />
-                </div>
+                <DetailField
+                  icon={Network}
+                  label={localize(
+                    language,
+                    "IP de gerenciamento",
+                    "Management IP",
+                  )}
+                  value={routerData.management_ip}
+                />
               </section>
 
               <section>
                 <h3 className="mb-3 text-sm font-semibold text-white">
-                  Monitoring history
+                  {localize(
+                    language,
+                    "Histórico de monitoramento",
+                    "Monitoring history",
+                  )}
                 </h3>
 
                 <div className="space-y-3">
                   <DetailField
                     icon={CalendarClock}
-                    label="Last checked"
+                    label={localize(
+                      language,
+                      "Última verificação",
+                      "Last checked",
+                    )}
                     value={formatDateTime(
                       routerData.last_checked_at,
+                      locale,
+                      neverLabel,
                     )}
                   />
 
                   <DetailField
                     icon={ShieldCheck}
-                    label="Last successful contact"
+                    label={localize(
+                      language,
+                      "Último contato bem-sucedido",
+                      "Last successful contact",
+                    )}
                     value={formatDateTime(
                       lastSuccessfulContact,
+                      locale,
+                      neverLabel,
                     )}
                   />
                 </div>
@@ -887,19 +1021,30 @@ export function RouterDetailDrawer({
 
                   <div className="flex-1">
                     <h3 className="text-sm font-semibold text-red-200">
-                      Deactivate router
+                      {localize(
+                        language,
+                        "Desativar roteador",
+                        "Deactivate router",
+                      )}
                     </h3>
 
                     <p className="mt-1 text-xs leading-5 text-slate-500">
-                      The router will be removed from
-                      active monitoring, but its database
-                      record will be preserved.
+                      {localize(
+                        language,
+                        "O roteador será removido do monitoramento ativo, mas seu registro será preservado no banco de dados.",
+                        "The router will be removed from active monitoring, but its database record will be preserved.",
+                      )}
                     </p>
 
                     {showDeactivateConfirmation ? (
                       <div className="mt-4 rounded-xl border border-red-400/20 bg-red-400/10 p-3">
                         <p className="text-sm text-red-200">
-                          Confirm deactivation of{" "}
+                          {localize(
+                            language,
+                            "Confirma a desativação de",
+                            "Confirm deactivation of",
+                          )}{" "}
+
                           <strong>
                             {routerData.name}
                           </strong>
@@ -917,7 +1062,11 @@ export function RouterDetailDrawer({
                             }}
                             className="h-9 rounded-lg border border-white/10 px-3 text-xs font-medium text-slate-300 transition hover:border-white/20 hover:text-white disabled:opacity-50"
                           >
-                            Cancel
+                            {localize(
+                              language,
+                              "Cancelar",
+                              "Cancel",
+                            )}
                           </button>
 
                           <button
@@ -929,12 +1078,22 @@ export function RouterDetailDrawer({
                             {isDeactivating ? (
                               <>
                                 <LoaderCircle className="size-3.5 animate-spin" />
-                                Deactivating...
+
+                                {localize(
+                                  language,
+                                  "Desativando...",
+                                  "Deactivating...",
+                                )}
                               </>
                             ) : (
                               <>
                                 <Trash2 className="size-3.5" />
-                                Confirm
+
+                                {localize(
+                                  language,
+                                  "Confirmar",
+                                  "Confirm",
+                                )}
                               </>
                             )}
                           </button>
@@ -945,6 +1104,7 @@ export function RouterDetailDrawer({
                         type="button"
                         onClick={() => {
                           setActionError(null);
+
                           setShowDeactivateConfirmation(
                             true,
                           );
@@ -952,7 +1112,12 @@ export function RouterDetailDrawer({
                         className="mt-4 flex h-9 items-center justify-center gap-2 rounded-lg border border-red-400/30 px-3 text-xs font-semibold text-red-300 transition hover:bg-red-400/10"
                       >
                         <Trash2 className="size-3.5" />
-                        Deactivate router
+
+                        {localize(
+                          language,
+                          "Desativar roteador",
+                          "Deactivate router",
+                        )}
                       </button>
                     )}
                   </div>
